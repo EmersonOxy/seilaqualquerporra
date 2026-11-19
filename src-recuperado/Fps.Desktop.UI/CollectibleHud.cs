@@ -11,6 +11,8 @@ internal static class CollectibleHud
         int screenHeight = Raylib.GetScreenHeight();
         string counter = $"ITENS  {items.CollectedCount} / {items.TotalCount}";
         Raylib.DrawText(counter, 22, 22, 22, Color.White);
+        string portals = $"PORTAIS  {items.UsedPortalPairs} / {items.TotalPortalPairs}";
+        Raylib.DrawText(portals, 22, 49, 19, new Color(180, 218, 244, 255));
         if (items.Completed)
         {
             Raylib.DrawRectangle(0, 0, screenWidth, screenHeight, new Color(0, 0, 0, 170));
@@ -23,6 +25,6 @@ internal static class CollectibleHud
             return;
         }
         string objective = items.Objective;
-        Raylib.DrawText(objective, 22, 52, 18, new Color(235, 235, 235, 220));
+        Raylib.DrawText(objective, 22, 77, 18, new Color(235, 235, 235, 220));
     }
 }
