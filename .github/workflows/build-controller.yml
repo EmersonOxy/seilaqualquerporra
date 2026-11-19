@@ -23,3 +23,12 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Compilar C# recuperado com novas mecanicas
         run: dotnet build src-recuperado/ControladorFPS.csproj --configuration Release --nologo
+      - name: Gerar executavel Windows independente
+        run: dotnet publish src-recuperado/ControladorFPS.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output ./dist/ControladorFPS --nologo
+      - name: Disponibilizar build experimental para testes
+        uses: actions/upload-artifact@v4
+        with:
+          name: ControladorFPS-Coletaveis-Portais-win-x64
+          path: dist/ControladorFPS/
+          if-no-files-found: error
+          retention-days: 14
