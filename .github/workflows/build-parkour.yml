@@ -1,0 +1,30 @@
+name: Testar e publicar mapa parkour
+on:
+  push:
+    branches: [feature/mapa-parkour-portais]
+    paths:
+      - 'src-recuperado/**'
+      - '.github/workflows/build-parkour.yml'
+  pull_request:
+    branches: [feature/coletaveis-portais]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Validar codigo
+        run: dotnet build src-recuperado/ControladorFPS.csproj -c Release --nologo
+      - name: Criar executavel Windows offline
+        run: dotnet publish src-recuperado/ControladorFPS.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/ControladorFPS --nologo
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ControladorFPS-Mapa-Parkour-win-x64
+          path: dist/ControladorFPS/
+          if-no-files-found: error
+          retention-days: 14
