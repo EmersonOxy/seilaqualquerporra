@@ -6,7 +6,7 @@ on:
       - 'src-recuperado/**'
       - '.github/workflows/build-controller.yml'
   pull_request:
-    branches: [main]
+    branches: [feature/coletaveis-portais, main]
     paths:
       - 'src-recuperado/**'
       - '.github/workflows/build-controller.yml'
