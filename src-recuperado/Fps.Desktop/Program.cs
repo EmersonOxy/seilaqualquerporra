@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using Fps.Desktop.Input;
+using Fps.Desktop.Gameplay;
 using Fps.Desktop.Player;
 using Fps.Desktop.Rendering;
 using Fps.Desktop.Scenes;
@@ -47,6 +48,10 @@ internal static class Program
 		Raylib.SetTargetFPS(144);
 		SceneManager sceneManager = new SceneManager(ArenaScene.Create());
 		PlayerController playerController = new PlayerController(sceneManager.Active.Spawn);
+		CollectibleManager collectibleManager = new CollectibleManager(sceneManager.Active);
+		playerController.PortalTraversed += collectibleManager.NotifyPortalTraversed;
+		float collectibleAnimation = 0f;
+		bool completionHandled = false;
 		DesktopInput desktopInput = new DesktopInput();
 		FpsCamera fpsCamera = new FpsCamera();
 		GameUpdates gameUpdates = (installed ? new GameUpdates() : null);
@@ -57,6 +62,7 @@ internal static class Program
 		while (!CBool.op_Implicit(Raylib.WindowShouldClose()))
 		{
 			float num = Math.Clamp(Raylib.GetFrameTime(), 0f, 0.25f);
+			collectibleAnimation += num;
 			bool captured = desktopInput.Captured;
 			InputState input = desktopInput.Poll();
 			if (gameUpdates != null && gameUpdates.Tick(desktopInput.UpdatePressed))
@@ -75,7 +81,7 @@ internal static class Program
 			{
 				playerController.Stop();
 			}
-			if (captured && desktopInput.Captured)
+			if (captured && desktopInput.Captured && !collectibleManager.Completed)
 			{
 				fpsCamera.Look(input.Mouse);
 				playerController.Update(input, sceneManager.Collision, fpsCamera.Yaw, num);
@@ -84,6 +90,15 @@ internal static class Program
 			{
 				playerController.Update(default, sceneManager.Collision, fpsCamera.Yaw, num);
 			}
+			if (!playerController.IsTraversing && !collectibleManager.Completed)
+			{
+				collectibleManager.Update(playerController.Feet, playerController.Elevation, playerController.Height);
+			}
+			if (collectibleManager.Completed && !completionHandled)
+			{
+				playerController.Stop();
+				completionHandled = true;
+			}
 			CameraPose pose = fpsCamera.Update(playerController, input.Mouse.X, num);
 			PortalTravelView? portalView = playerController.PortalView;
 			SkyLighting skyLighting = skyRenderer.Update(num);
@@ -91,7 +106,7 @@ internal static class Program
 			bool flag = outlinePostProcess.BeginScene();
 			Raylib.ClearBackground(WorldRenderer.Sky);
 			skyRenderer.Draw(pose, skyLighting, flag);
-			worldRenderer.Draw(sceneManager.Active, pose, portalView, skyLighting);
+			worldRenderer.Draw(sceneManager.Active, pose, portalView, skyLighting, collectibleManager, collectibleAnimation);
 			if (flag)
 			{
 				outlinePostProcess.EndScene(pose.VerticalFov);
@@ -106,6 +121,7 @@ internal static class Program
 				}
 			}
 			UpdateHud.Draw(gameUpdates?.Status);
+			CollectibleHud.Draw(collectibleManager);
 			Raylib.EndDrawing();
 		}
 	}
