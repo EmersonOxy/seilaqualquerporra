@@ -16,7 +16,7 @@ internal sealed class CollisionWorld
     private readonly ScenePortalPair[] portalPairs;
     private readonly float halfWorld;
     private readonly float halfBase;
-    private const float MaxStep = .42f;
+    private const float MaxStep = .45f;
     private const float MaxDownSnap = .38f;
 
     public ReadOnlySpan<ScenePortalPair> PortalPairs => portalPairs;
@@ -106,7 +106,7 @@ internal sealed class CollisionWorld
         {
             // For a floor slope, the feet are measured vertically while the
             // capsule radius is perpendicular to the surface: touching is valid.
-            if (ramp.TryGetHeight(feet, out float walkingY, radius * .85f) && elevation >= walkingY - .035f)
+            if (ramp.TryGetHeight(feet, out float walkingY, radius + .045f) && elevation >= walkingY - .035f)
                 continue;
             if (CapsuleHitsBox(feet, elevation, height, radius, ramp.Center, ramp.BoxSize,
                 RampRotation(ramp))) return false;
@@ -149,8 +149,8 @@ internal sealed class CollisionWorld
         top = roof.Y - (normal.X * (feet.X - roof.X) + normal.Z * (feet.Y - roof.Z)) / normal.Y;
         Vector3 local = Vector3.Transform(new Vector3(feet.X, top, feet.Y) - box.Center,
             Quaternion.Inverse(q));
-        return MathF.Abs(local.X) <= box.Size.X * .5f + radius * .85f &&
-               MathF.Abs(local.Z) <= box.Size.Z * .5f + radius * .85f;
+        return MathF.Abs(local.X) <= box.Size.X * .5f + radius + .06f &&
+               MathF.Abs(local.Z) <= box.Size.Z * .5f + radius + .06f;
     }
 
     private static bool CylinderTopAt(Vector2 feet, SceneCylinder cylinder, out float top)
@@ -194,7 +194,7 @@ internal sealed class CollisionWorld
         }
         foreach (SceneRamp ramp in ramps)
         {
-            if (ramp.TryGetHeight(feet, out float y, radius * .85f) &&
+            if (ramp.TryGetHeight(feet, out float y, radius + .045f) &&
                 y >= minY && y <= maxY && y > support)
             {
                 support = y; found = true;
@@ -205,6 +205,26 @@ internal sealed class CollisionWorld
 
     public bool GroundBelow(Vector2 feet, float elevation, float radius, out float ground) =>
         TrySupport(feet, elevation - .09f, elevation + .05f, radius, out ground);
+
+    public bool TryRampSlide(Vector2 feet, float elevation, out Vector2 downhill, out float gravityFactor)
+    {
+        foreach (SceneRamp r in ramps)
+        {
+            // Only slide while the capsule's feet touch the walking face.
+            // The sign of Rise determines whether downhill is Start or End.
+            if (!r.TryGetHeight(feet, out float h, .12f) ||
+                MathF.Abs(h - elevation) > .17f ||
+                MathF.Abs(r.Rise) < .08f)
+                continue;
+
+            downhill = r.Rise > 0f ? -r.Direction : r.Direction;
+            gravityFactor = MathF.Abs(r.Rise) / r.SlopedLength;
+            return true;
+        }
+        downhill = Vector2.Zero;
+        gravityFactor = 0f;
+        return false;
+    }
 
     public bool OnRamp(Vector2 feet, float elevation)
     {
