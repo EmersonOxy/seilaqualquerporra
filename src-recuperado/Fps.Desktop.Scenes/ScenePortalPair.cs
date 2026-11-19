@@ -2,7 +2,7 @@ using System.Numerics;
 
 namespace Fps.Desktop.Scenes;
 
-internal readonly record struct ScenePortalPair(ScenePortal First, ScenePortal Second)
+internal readonly record struct ScenePortalPair(ScenePortal First, ScenePortal Second, bool OneWay = false)
 {
 	public ScenePortal? FloorOpeningAt(Vector2 position, float margin)
 	{
