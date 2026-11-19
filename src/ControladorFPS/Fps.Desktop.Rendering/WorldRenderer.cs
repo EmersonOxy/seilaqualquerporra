@@ -296,7 +296,7 @@ void main() {
 		{
 			int alpha = (int)(particle.Opacity * 255f);
 			Raylib.DrawSphere(particle.Position, particle.Size,
-				new Color(255, (byte)(125 + particle.Opacity * 105f), 30, (byte)alpha));
+				new Color(255, (int)(125 + particle.Opacity * 105f), 30, alpha));
 		}
         foreach (SceneRamp ramp in scene.Ramps)
         {
@@ -370,7 +370,7 @@ void main() {
 			Vector3 tip = start + Vector3.UnitY * h + sway;
 			byte green = (byte)(115 + NextGrassRandom(ref seed) * 95f);
 			Raylib.DrawCylinderEx(start, tip, .035f, .0015f, 4,
-				new Color(42, green, 48, 255));
+				new Color(42, (int)green, 48, 255));
 		}
 	}
 
