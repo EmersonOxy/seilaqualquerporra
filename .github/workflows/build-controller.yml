@@ -1,0 +1,25 @@
+name: Compilar prototipo de coleta e portais
+on:
+  push:
+    branches: [feature/coletaveis-portais]
+    paths:
+      - 'src-recuperado/**'
+      - '.github/workflows/build-controller.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src-recuperado/**'
+      - '.github/workflows/build-controller.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Compilar C# recuperado com novas mecanicas
+        run: dotnet build src-recuperado/ControladorFPS.csproj --configuration Release --nologo
