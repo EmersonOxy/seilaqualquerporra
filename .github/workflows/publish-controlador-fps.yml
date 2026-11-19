@@ -1,0 +1,19 @@
+name: Publicar Controlador FPS 1.2.0
+on:
+  push:
+    branches: [download-v1.2.0]
+    paths: [.github/workflows/publish-controlador-fps.yml]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Publicar no GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create v1.2.0 release-v1.2.0/ControladorFPS-win-Setup.exe release-v1.2.0/ControladorFPS-1.2.0-full.nupkg release-v1.2.0/ControladorFPS-1.2.0-delta.nupkg release-v1.2.0/releases.win.json --target "$GITHUB_SHA" --title 'Controlador FPS 1.2.0' --notes 'Portais duas vezes maiores, nos planos horizontal e vertical. A câmera percorre o túnel e escurece antes da saída. O atualizador indica a fase de preparação do pacote.' --latest
