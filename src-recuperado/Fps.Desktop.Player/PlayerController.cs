@@ -242,7 +242,9 @@ internal sealed class PlayerController(Vector2 spawn)
         {
             foreach (ScenePortalPair pair in pairs)
             {
-                ScenePortal? hole = pair.FloorOpeningAt(Feet, .3199f);
+                ScenePortal? hole = pair.OneWay ?
+                    (pair.First.InFloor && pair.First.Contains(Feet, .3199f) ? pair.First : null) :
+                    pair.FloorOpeningAt(Feet, .3199f);
                 if (hole.HasValue)
                 {
                     ScenePortal entry = hole.Value;
@@ -261,7 +263,7 @@ internal sealed class PlayerController(Vector2 spawn)
                 BeginTraversal(pair.First, side, pair.Second, forward);
                 return;
             }
-            if (CrossesFrame(pair.Second, before, after, out side))
+            if (!pair.OneWay && CrossesFrame(pair.Second, before, after, out side))
             {
                 BeginTraversal(pair.Second, side, pair.First, forward);
                 return;
