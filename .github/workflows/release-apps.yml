@@ -64,24 +64,40 @@ jobs:
           Copy-Item 'dist/editor-release/MapEditor-editor-Setup.exe' "$editorDir/MapEditor-editor-Setup.exe"
           @'
           @echo off
-          set "APP_HOME=%~dp0"
-          "%~dp0ControladorFPS-win-Setup.exe" --installto "%APP_HOME%"
+          for %%I in ("%~dp0.") do set "APP_HOME=%%~fI"
+          "%APP_HOME%\ControladorFPS-win-Setup.exe" --installto "%APP_HOME%"
           '@ | Set-Content "$gameDir/Instalar-Jogo.cmd" -Encoding ascii
           @'
           @echo off
-          set "APP_HOME=%~dp0"
-          "%~dp0MapEditor-editor-Setup.exe" --installto "%APP_HOME%"
+          for %%I in ("%~dp0.") do set "APP_HOME=%%~fI"
+          "%APP_HOME%\MapEditor-editor-Setup.exe" --installto "%APP_HOME%"
           '@ | Set-Content "$editorDir/Instalar-Editor.cmd" -Encoding ascii
+          @'
+          JOGO
+
+          Instalar-Jogo.cmd: primeira instalação nesta pasta.
+          ControladorFPS-win-Setup.exe: instalador do jogo.
+          Atualizar-Jogo.cmd: atualiza a instalação sem abrir o jogo.
+          Feche o jogo antes de atualizar.
+          '@ | Set-Content "$gameDir/LEIA-ME.txt" -Encoding utf8
+          @'
+          EDITOR
+
+          Instalar-Editor.cmd: primeira instalação nesta pasta.
+          MapEditor-editor-Setup.exe: instalador do editor.
+          Atualizar-Editor.cmd: atualiza a instalação sem abrir o editor.
+          Feche o editor antes de atualizar.
+          '@ | Set-Content "$editorDir/LEIA-ME.txt" -Encoding utf8
           @'
           @echo off
           setlocal
-          set "APP_HOME=%~dp0"
+          for %%I in ("%~dp0.") do set "APP_HOME=%%~fI"
           set "TARGET="
           if exist "%APP_HOME%current\sq.version" set "TARGET=%APP_HOME%"
           if not defined TARGET if exist "%LOCALAPPDATA%\ControladorFPS\current\sq.version" set "TARGET=%LOCALAPPDATA%\ControladorFPS"
           if not defined TARGET set "TARGET=%APP_HOME%"
           echo Atualizando o Controlador FPS sem iniciar o jogo...
-          "%APP_HOME%ControladorFPS-win-Setup.exe" --installto "%TARGET%" --silent
+          "%APP_HOME%\ControladorFPS-win-Setup.exe" --installto "%TARGET%" --silent
           if errorlevel 1 (
             echo Falha ao atualizar. Feche o jogo, se estiver aberto, e tente novamente.
             pause
@@ -93,13 +109,13 @@ jobs:
           @'
           @echo off
           setlocal
-          set "APP_HOME=%~dp0"
+          for %%I in ("%~dp0.") do set "APP_HOME=%%~fI"
           set "TARGET="
           if exist "%APP_HOME%current\sq.version" set "TARGET=%APP_HOME%"
           if not defined TARGET if exist "%LOCALAPPDATA%\MapEditor\current\sq.version" set "TARGET=%LOCALAPPDATA%\MapEditor"
           if not defined TARGET set "TARGET=%APP_HOME%"
           echo Atualizando o Editor sem iniciar o aplicativo...
-          "%APP_HOME%MapEditor-editor-Setup.exe" --installto "%TARGET%" --silent
+          "%APP_HOME%\MapEditor-editor-Setup.exe" --installto "%TARGET%" --silent
           if errorlevel 1 (
             echo Falha ao atualizar. Feche o editor, se estiver aberto, e tente novamente.
             pause

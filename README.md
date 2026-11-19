@@ -4,7 +4,7 @@ Jogo e editor de mapas para Windows 10 e 11 (64 bits), feitos em C# com raylib.
 
 ## Instalação
 
-Baixe os dois pacotes ZIP e extraia cada um na pasta em que quer manter o aplicativo. Execute `Instalar-Jogo.cmd` ou `Instalar-Editor.cmd` dentro da pasta extraída; o setup instala o aplicativo ao lado dele, sem usar `%LOCALAPPDATA%`.
+Baixe os dois pacotes ZIP e extraia cada um na pasta em que quer manter o aplicativo. Execute `Instalar-Jogo.cmd` ou `Instalar-Editor.cmd` dentro da pasta extraída; esses atalhos chamam o executável `Setup` e instalam o aplicativo ao lado dele, sem usar `%LOCALAPPDATA%`. O arquivo `LEIA-ME.txt` dentro de cada pasta explica para que serve cada arquivo.
 
 - [Pasta do jogo](https://github.com/EmersonOxy/seilaqualquerporra/releases/latest/download/ControladorFPS-Jogo.zip)
 - [Pasta do editor](https://github.com/EmersonOxy/seilaqualquerporra/releases/latest/download/MapEditor-Editor.zip)
