@@ -39,9 +39,30 @@ internal sealed class MapPortal
         new ScenePortal(SecondCenter, Vector3.Normalize(SecondNormal), SecondRadius));
 }
 
+internal sealed class MapCollectible
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "Item";
+    public Vector3 Position { get; set; }
+    public int RequiredPortal { get; set; } = -1;
+    public bool Visible { get; set; } = true;
+}
+
+internal sealed class MapPortalNode
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "Portal";
+    public Vector3 Center { get; set; }
+    public Vector3 Normal { get; set; } = Vector3.UnitZ;
+    public float Radius { get; set; } = 2.36f;
+    public Guid? DestinationId { get; set; }
+    // When false the pair can also be traversed in reverse.
+    public bool OneWay { get; set; } = false;
+}
+
 internal sealed class MapDocument
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
     public string Name { get; set; } = "Parkour e Portais";
     public float WorldSize { get; set; } = 180f;
     public float BaseSize { get; set; } = 50f;
@@ -49,6 +70,67 @@ internal sealed class MapDocument
     public Vector2 Spawn { get; set; } = new(0f, 7f);
     public List<MapObject> Objects { get; set; } = new();
     public List<MapPortal> Portals { get; set; } = new();
+    public List<MapPortalNode> PortalNodes { get; set; } = new();
+    public List<MapCollectible> Collectibles { get; set; } = new();
+
+    public void ConvertLegacyPortals()
+    {
+        if (PortalNodes.Count != 0 || Portals.Count == 0) return;
+        int index = 0;
+        foreach (MapPortal old in Portals)
+        {
+            index++;
+            MapPortalNode source = new()
+            {
+                Name = "Portal " + index + " - Origem",
+                Center = old.FirstCenter, Normal = old.FirstNormal,
+                Radius = old.FirstRadius, OneWay = false
+            };
+            MapPortalNode target = new()
+            {
+                Name = "Portal " + index + " - Destino",
+                Center = old.SecondCenter, Normal = old.SecondNormal,
+                Radius = old.SecondRadius
+            };
+            source.DestinationId = target.Id;
+            PortalNodes.Add(source);
+            PortalNodes.Add(target);
+        }
+        Portals.Clear();
+    }
+
+    public void LinkPortals(Guid sourceId, Guid targetId)
+    {
+        if (sourceId == targetId) throw new ArgumentException("Origem e destino devem ser diferentes.");
+        MapPortalNode source = PortalNodes.Find(x => x.Id == sourceId)
+            ?? throw new ArgumentException("Portal de origem inexistente.");
+        MapPortalNode target = PortalNodes.Find(x => x.Id == targetId)
+            ?? throw new ArgumentException("Portal de destino inexistente.");
+        // One endpoint should be the destination of only one link at a time.
+        foreach (MapPortalNode node in PortalNodes)
+        {
+            if (node.DestinationId == targetId && node.Id != sourceId)
+                node.DestinationId = null;
+        }
+        source.DestinationId = target.Id;
+        target.DestinationId = null;
+        source.OneWay = true;
+    }
+
+    public void ReverseLink(Guid sourceId)
+    {
+        MapPortalNode source = PortalNodes.Find(x => x.Id == sourceId)
+            ?? throw new ArgumentException("Portal de origem inexistente.");
+        if (source.DestinationId is not Guid targetId)
+            throw new ArgumentException("Selecione um portal de origem com ligação.");
+        MapPortalNode target = PortalNodes.Find(x => x.Id == targetId)
+            ?? throw new ArgumentException("Portal de destino inexistente.");
+        bool oneWay = source.OneWay;
+        source.DestinationId = null;
+        target.DestinationId = source.Id;
+        target.OneWay = oneWay;
+    }
+
 
     public SceneDefinition ToScene()
     {
@@ -102,11 +184,29 @@ internal sealed class MapDocument
         }
 
         List<ScenePortalPair> portals = new();
-        foreach (MapPortal pair in Portals)
-            portals.Add(pair.Build());
+        if (PortalNodes.Count > 0)
+        {
+            foreach (MapPortalNode source in PortalNodes)
+            {
+                if (source.DestinationId is not Guid otherId) continue;
+                MapPortalNode? destination = PortalNodes.Find(x => x.Id == otherId);
+                if (destination == null || destination == source) continue;
+                portals.Add(new ScenePortalPair(
+                    new ScenePortal(source.Center, Vector3.Normalize(source.Normal), source.Radius),
+                    new ScenePortal(destination.Center, Vector3.Normalize(destination.Normal), destination.Radius),
+                    source.OneWay));
+            }
+        }
+        else
+        {
+            foreach (MapPortal pair in Portals) portals.Add(pair.Build());
+        }
 
+        List<SceneCollectible> items = new();
+        foreach (MapCollectible item in Collectibles)
+            if (item.Visible) items.Add(new SceneCollectible(item.Name, item.Position, item.RequiredPortal));
         return new SceneDefinition(WorldSize, TileSize, Spawn, boxes.ToArray(),
-            portals.ToArray(), ramps.ToArray(), BaseSize, cylinders.ToArray(), ladders.ToArray());
+            portals.ToArray(), ramps.ToArray(), BaseSize, cylinders.ToArray(), ladders.ToArray(), items.ToArray());
     }
 }
 
@@ -205,6 +305,8 @@ internal static class SceneMapIO
                 SecondRadius = pair.Second.Radius
             });
         }
+        data.ConvertLegacyPortals();
+        AddDefaultCollectibles(data);
         return data;
     }
 
@@ -213,6 +315,12 @@ internal static class SceneMapIO
         string json = File.ReadAllText(path);
         MapDocument data = JsonSerializer.Deserialize<MapDocument>(json, Options)
             ?? throw new InvalidDataException("Mapa vazio ou invalido.");
+        if (data.Version == 1)
+        {
+            data.ConvertLegacyPortals();
+            AddDefaultCollectibles(data);
+            data.Version = 2;
+        }
         Validate(data);
         return data;
     }
@@ -229,11 +337,39 @@ internal static class SceneMapIO
         File.Move(temp, path, true);
     }
 
+    private static void AddDefaultCollectibles(MapDocument data)
+    {
+        Vector2 spawn = data.Spawn;
+        (string name, Vector3 pos, int portal)[] placements =
+        {
+            ("Inicio", new Vector3(spawn.X - 2f, 1.05f, spawn.Y - 1f), -1),
+            ("Agachamento", new Vector3(0f, .52f, -1.5f), -1),
+            ("Rampa leste", new Vector3(30f, 2.05f, -5f), -1),
+            ("Ilha leste", new Vector3(31f, 1f, -10f), -1),
+            ("Torre leste", new Vector3(39f, 3.65f, -7f), 0),
+            ("Ilha oeste", new Vector3(-35f, 1f, -22f), -1),
+            ("Torre oeste", new Vector3(-44f, 6.35f, -16f), 1),
+            ("Pedras norte", new Vector3(-10f, 1.55f, -30.2f), -1),
+            ("Ilha norte", new Vector3(0f, 1f, -35f), -1),
+            ("Torre norte", new Vector3(0f, 4.75f, -46f), -1),
+            ("Ilha sul", new Vector3(10f, 1f, 35f), -1),
+            ("Rampa sul", new Vector3(4f, 2.55f, 33f), -1),
+            ("Torre final", new Vector3(19f, 6.9f, 42f), 2)
+        };
+        foreach ((string name, Vector3 position, int portal) in placements)
+            data.Collectibles.Add(new MapCollectible
+            {
+                Name = name, Position = position, RequiredPortal = portal
+            });
+    }
+
     private static void Validate(MapDocument data)
     {
-        if (data.Version != 1)
+        if (data.Version != 2)
             throw new InvalidDataException("Versao de mapa nao suportada: " + data.Version);
-        if (data.Objects == null || data.Portals == null || data.Objects.Count > 20000)
+        if (data.Objects == null || data.Portals == null || data.PortalNodes == null ||
+            data.Collectibles == null || data.Objects.Count > 20000 ||
+            data.Collectibles.Count > 5000 || data.PortalNodes.Count > 300)
             throw new InvalidDataException("Lista de objetos invalida.");
         foreach (MapObject o in data.Objects)
         {
@@ -250,7 +386,26 @@ internal static class SceneMapIO
                 p.FirstRadius < .5f || p.SecondRadius < .5f)
                 throw new InvalidDataException("Portal invalido.");
         }
+        HashSet<Guid> ids = new();
+        foreach (MapPortalNode node in data.PortalNodes)
+        {
+            if (node.Id == Guid.Empty || !ids.Add(node.Id) ||
+                !Finite(node.Center) || !Finite(node.Normal) ||
+                node.Normal.LengthSquared() < .1f || node.Radius < .5f ||
+                !float.IsFinite(node.Radius))
+                throw new InvalidDataException("Portal independente invalido.");
+        }
+        foreach (MapPortalNode node in data.PortalNodes)
+        {
+            if (node.DestinationId is Guid target &&
+                (node.Id == target || !ids.Contains(target)))
+                throw new InvalidDataException("Ligacao de portal invalida.");
+        }
+        foreach (MapCollectible item in data.Collectibles)
+            if (!Finite(item.Position) || item.Id == Guid.Empty)
+                throw new InvalidDataException("Coletavel invalido.");
     }
+
 
     private static bool Finite(Vector3 v) =>
         float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z);
