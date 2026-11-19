@@ -20,6 +20,8 @@ internal sealed class ParallaxPortalRenderer : IDisposable
 
 	private readonly int openInteriorLocation;
 
+    private readonly int layersLocation;
+
 	private readonly int fogColorLocation;
 
 	private const string VertexShader = "#version 330\nin vec3 vertexPosition;\nin vec2 vertexTexCoord;\nin vec3 vertexNormal;\nin vec4 vertexTangent;\nuniform mat4 mvp;\nuniform mat4 matModel;\nuniform mat4 matNormal;\nout vec2 uv;\nout vec3 worldPosition;\nout vec3 normal;\nout vec3 tangent;\n\nvoid main() {\n    uv = vertexTexCoord;\n    worldPosition = (matModel * vec4(vertexPosition, 1.0)).xyz;\n    normal = mat3(matNormal) * vertexNormal;\n    tangent = mat3(matModel) * vertexTangent.xyz;\n    gl_Position = mvp * vec4(vertexPosition, 1.0);\n}";
@@ -56,7 +58,8 @@ internal sealed class ParallaxPortalRenderer : IDisposable
 		timeLocation = Raylib.GetShaderLocation(shader, "timeOffset");
 		openInteriorLocation = Raylib.GetShaderLocation(shader, "openInterior");
 		fogColorLocation = Raylib.GetShaderLocation(shader, "fogColor");
-		Raylib.SetShaderValue<int>(shader, Raylib.GetShaderLocation(shader, "layers"), Math.Clamp(10, 1, 64), (ShaderUniformDataType)4);
+        layersLocation = Raylib.GetShaderLocation(shader, "layers");
+        Raylib.SetShaderValue<int>(shader, layersLocation, 8, (ShaderUniformDataType)4);
 		Raylib.SetShaderValue<float>(shader, Raylib.GetShaderLocation(shader, "depthAmount"), 0.38f, (ShaderUniformDataType)0);
 		Raylib.SetShaderValue<float>(shader, Raylib.GetShaderLocation(shader, "fadeAmount"), 1.5f, (ShaderUniformDataType)0);
 		Mesh val = Raylib.GenMeshPlane(1f, 1f, 1, 1);
@@ -79,6 +82,9 @@ internal sealed class ParallaxPortalRenderer : IDisposable
 		float num = (float)(Raylib.GetTime() * 0.10000000149011612 % 1.0);
 		Raylib.SetShaderValue<float>(shader, timeLocation, num, (ShaderUniformDataType)0);
 		Raylib.SetShaderValue<int>(shader, openInteriorLocation, showInterior ? 1 : 0, (ShaderUniformDataType)4);
+        float distanceSq = Vector3.DistanceSquared(portal.Center, eye);
+        int layers = distanceSq < 20f * 20f ? 8 : (distanceSq < 45f * 45f ? 5 : 3);
+        Raylib.SetShaderValue<int>(shader, layersLocation, layers, (ShaderUniformDataType)4);
 		Vector3 vector = ((!portal.InFloor && portal.SignedDistance(eye) < 0f) ? (-portal.Normal) : portal.Normal);
 		Vector3 value = Vector3.Cross(Vector3.UnitY, vector);
 		value = ((value.LengthSquared() > 1E-06f) ? Vector3.Normalize(value) : Vector3.UnitX);
