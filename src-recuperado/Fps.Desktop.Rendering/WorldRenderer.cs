@@ -178,11 +178,14 @@ void main() {
 		for (int i = 0; i < collectibles.Items.Count; i++)
 		{
 			CollectibleItem item = collectibles.Items[i];
-			if (item.Collected || !collectibles.Available(item))
-				continue;
+			if (item.Collected)
+                continue;
+            bool active = collectibles.Available(item);
 			Vector3 center = item.Position + Vector3.UnitY * (MathF.Sin(animationTime * 2.8f + i) * 0.09f);
-			Raylib.DrawSphereEx(center, 0.24f, 6, 8, new Color(250, 224, 125, 255));
-			Raylib.DrawSphereWires(center, 0.3f, 6, 8, new Color(255, 250, 215, 220));
+			Raylib.DrawSphereEx(center, active ? 0.24f : .18f, 6, 8,
+                active ? new Color(250, 224, 125, 255) : new Color(110, 118, 124, 225));
+			Raylib.DrawSphereWires(center, 0.3f, 6, 8,
+                active ? new Color(255, 250, 215, 220) : new Color(160, 171, 185, 175));
 		}
         foreach (SceneRamp ramp in scene.Ramps)
         {
