@@ -62,7 +62,7 @@ internal sealed class ParallaxPortalRenderer : IDisposable
 		Mesh val = Raylib.GenMeshPlane(1f, 1f, 1, 1);
 		Raylib.GenMeshTangents(ref val);
 		surface = Raylib.LoadModelFromMesh(val);
-		Unsafe.Write(&((Material)surface.Materials).Shader, shader);
+		surface.Materials[0].Shader = shader;
 		Raylib.SetMaterialTexture(ref *surface.Materials, (MaterialMapIndex)0, noise);
 	}
 
