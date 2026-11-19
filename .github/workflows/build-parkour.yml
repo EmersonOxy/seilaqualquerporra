@@ -1,9 +1,11 @@
 name: Testar e publicar mapa parkour
 on:
   push:
-    branches: [feature/mapa-parkour-portais]
+    branches: [feature/mapa-parkour-portais, feature/fisica-rampas-escadas]
     paths:
       - 'src-recuperado/**'
+      - 'tools/MapEditor/**'
+      - 'tests/LevelValidation/**'
       - 'tests/LevelValidation/**'
       - '.github/workflows/build-parkour.yml'
   pull_request:
@@ -23,11 +25,15 @@ jobs:
         run: dotnet build src-recuperado/ControladorFPS.csproj -c Release --nologo
       - name: Testar colisao, buracos e trajetos do mapa
         run: dotnet run --project tests/LevelValidation/LevelValidation.csproj -c Release --nologo
+      - name: Compilar editor de mapas
+        run: dotnet build tools/MapEditor/MapEditor.csproj -c Release --nologo
       - name: Criar executavel Windows offline
         run: dotnet publish src-recuperado/ControladorFPS.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/ControladorFPS --nologo
+      - name: Publicar MapEditor.exe na mesma pasta do jogo
+        run: dotnet publish tools/MapEditor/MapEditor.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/ControladorFPS --nologo
       - uses: actions/upload-artifact@v4
         with:
-          name: ControladorFPS-Mapa-Parkour-win-x64
+          name: ControladorFPS-e-Editor-Mapas-win-x64
           path: dist/ControladorFPS/
           if-no-files-found: error
           retention-days: 14
