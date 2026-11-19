@@ -104,6 +104,10 @@ internal sealed class CollisionWorld
         }
         foreach (SceneRamp ramp in ramps)
         {
+            // For a floor slope, the feet are measured vertically while the
+            // capsule radius is perpendicular to the surface: touching is valid.
+            if (ramp.TryGetHeight(feet, out float walkingY) && elevation >= walkingY - .035f)
+                continue;
             if (CapsuleHitsBox(feet, elevation, height, radius, ramp.Center, ramp.BoxSize,
                 RampRotation(ramp))) return false;
         }
