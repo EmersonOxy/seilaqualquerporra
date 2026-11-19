@@ -1,6 +1,6 @@
 using System;
 using System.Numerics;
-using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 using Fps.Desktop.Player;
 using Fps.Desktop.Gameplay;
 using Fps.Desktop.Scenes;
@@ -30,13 +30,43 @@ internal sealed class WorldRenderer : IDisposable
 
 	private readonly ParallaxPortalRenderer portal = new ParallaxPortalRenderer();
 
-	private readonly PortalGeometry? firstGeometry;
-
-	private readonly PortalGeometry? secondGeometry;
+	private readonly PortalGeometry[] portalGeometries;
+    private readonly ScenePortal[] portalEndpoints;
 
 	private const string VertexShader = "#version 330\nin vec3 vertexPosition;\nin vec2 vertexTexCoord;\nin vec3 vertexNormal;\nuniform mat4 mvp;\nuniform mat4 matModel;\nuniform mat4 matNormal;\nout vec2 uv;\nout vec3 worldPosition;\nout vec3 normal;\n\nvoid main() {\n    uv = vertexTexCoord;\n    worldPosition = (matModel * vec4(vertexPosition, 1.0)).xyz;\n    normal = (matNormal * vec4(vertexNormal, 0.0)).xyz;\n    gl_Position = mvp * vec4(vertexPosition, 1.0);\n}";
 
-	private const string FragmentShader = "#version 330\nin vec2 uv;\nin vec3 worldPosition;\nin vec3 normal;\nuniform sampler2D texture0;\nuniform vec4 colDiffuse;\nuniform vec3 viewPosition;\nuniform vec3 lightDirection;\nuniform vec3 fogColor;\nuniform float nightAmount;\nuniform vec3 holeA;\nuniform vec3 holeB;\nout vec4 finalColor;\n\nvoid main() {\n    if (worldPosition.y <= 0.001 &&\n        (distance(worldPosition.xz, holeA.xy) < holeA.z ||\n         distance(worldPosition.xz, holeB.xy) < holeB.z)) discard;\n\n    vec4 base = texture(texture0, uv) * colDiffuse;\n    float light = mix(0.72, 0.48, nightAmount) +\n        mix(0.28, 0.22, nightAmount) * max(dot(normalize(normal), lightDirection), 0.0);\n    float distanceFactor = length(viewPosition - worldPosition) * 0.023;\n    float fog = 1.0 - exp(-distanceFactor * distanceFactor);\n    finalColor = vec4(mix(base.rgb * light, fogColor, fog), base.a);\n}";
+	private const string FragmentShader = @"#version 330
+in vec2 uv;
+in vec3 worldPosition;
+in vec3 normal;
+uniform sampler2D texture0;
+uniform vec4 colDiffuse;
+uniform vec3 viewPosition;
+uniform vec3 lightDirection;
+uniform vec3 fogColor;
+uniform float nightAmount;
+uniform vec3 hole0;
+uniform vec3 hole1;
+uniform vec3 hole2;
+uniform vec3 hole3;
+uniform vec3 hole4;
+uniform vec3 hole5;
+out vec4 finalColor;
+
+bool insideHole(vec3 h) {
+    return h.z > 0.0 && worldPosition.y < 0.001 &&
+        distance(worldPosition.xz, h.xy) < h.z;
+}
+void main() {
+    if (insideHole(hole0) || insideHole(hole1) || insideHole(hole2) ||
+        insideHole(hole3) || insideHole(hole4) || insideHole(hole5)) discard;
+    vec4 base = texture(texture0, uv) * colDiffuse;
+    float light = mix(0.72, 0.48, nightAmount) +
+        mix(0.28, 0.22, nightAmount) * max(dot(normalize(normal), lightDirection), 0.0);
+    float distanceFactor = length(viewPosition - worldPosition) * 0.023;
+    float fog = 1.0 - exp(-distanceFactor * distanceFactor);
+    finalColor = vec4(mix(base.rgb * light, fogColor, fog), base.a);
+}";
 
 	public unsafe WorldRenderer(SceneDefinition scene)
 	{
@@ -66,40 +96,46 @@ internal sealed class WorldRenderer : IDisposable
 		//IL_01b2: Unknown result type (might be due to invalid IL or missing references)
 		//IL_01c3: Unknown result type (might be due to invalid IL or missing references)
 		//IL_01c8: Unknown result type (might be due to invalid IL or missing references)
-		int num = (int)MathF.Round(scene.Size / scene.TileSize);
+		int num = (int)MathF.Round(scene.BaseSize / scene.TileSize);
 		Image val = Raylib.GenImageChecked(num * 32, num * 32, 32, 32, new Color(122, 122, 122, 255), new Color(81, 81, 81, 255));
 		checker = Raylib.LoadTextureFromImage(val);
 		Raylib.UnloadImage(val);
 		Raylib.GenTextureMipmaps(ref checker);
 		Raylib.SetTextureFilter(checker, (TextureFilter)4);
-		lighting = Raylib.LoadShaderFromMemory("#version 330\nin vec3 vertexPosition;\nin vec2 vertexTexCoord;\nin vec3 vertexNormal;\nuniform mat4 mvp;\nuniform mat4 matModel;\nuniform mat4 matNormal;\nout vec2 uv;\nout vec3 worldPosition;\nout vec3 normal;\n\nvoid main() {\n    uv = vertexTexCoord;\n    worldPosition = (matModel * vec4(vertexPosition, 1.0)).xyz;\n    normal = (matNormal * vec4(vertexNormal, 0.0)).xyz;\n    gl_Position = mvp * vec4(vertexPosition, 1.0);\n}", "#version 330\nin vec2 uv;\nin vec3 worldPosition;\nin vec3 normal;\nuniform sampler2D texture0;\nuniform vec4 colDiffuse;\nuniform vec3 viewPosition;\nuniform vec3 lightDirection;\nuniform vec3 fogColor;\nuniform float nightAmount;\nuniform vec3 holeA;\nuniform vec3 holeB;\nout vec4 finalColor;\n\nvoid main() {\n    if (worldPosition.y <= 0.001 &&\n        (distance(worldPosition.xz, holeA.xy) < holeA.z ||\n         distance(worldPosition.xz, holeB.xy) < holeB.z)) discard;\n\n    vec4 base = texture(texture0, uv) * colDiffuse;\n    float light = mix(0.72, 0.48, nightAmount) +\n        mix(0.28, 0.22, nightAmount) * max(dot(normalize(normal), lightDirection), 0.0);\n    float distanceFactor = length(viewPosition - worldPosition) * 0.023;\n    float fog = 1.0 - exp(-distanceFactor * distanceFactor);\n    finalColor = vec4(mix(base.rgb * light, fogColor, fog), base.a);\n}");
+		lighting = Raylib.LoadShaderFromMemory(VertexShader, FragmentShader);
 		viewPositionLocation = Raylib.GetShaderLocation(lighting, "viewPosition");
 		lightDirectionLocation = Raylib.GetShaderLocation(lighting, "lightDirection");
 		fogColorLocation = Raylib.GetShaderLocation(lighting, "fogColor");
 		nightAmountLocation = Raylib.GetShaderLocation(lighting, "nightAmount");
-		ScenePortalPair? portals = scene.Portals;
-		if (portals.HasValue)
-		{
-			ScenePortalPair valueOrDefault = portals.GetValueOrDefault();
-			SetFloorOpening("holeA", valueOrDefault.First);
-			SetFloorOpening("holeB", valueOrDefault.Second);
-			firstGeometry = new PortalGeometry(valueOrDefault.First);
-			secondGeometry = new PortalGeometry(valueOrDefault.Second);
-		}
-		floor = Raylib.LoadModelFromMesh(Raylib.GenMeshPlane(scene.Size, scene.Size, 1, 1));
+        List<PortalGeometry> geometries = new();
+        List<ScenePortal> endpoints = new();
+        foreach (ScenePortalPair pair in scene.PortalPairs)
+        {
+            geometries.Add(new PortalGeometry(pair.First));
+            geometries.Add(new PortalGeometry(pair.Second));
+            endpoints.Add(pair.First);
+            endpoints.Add(pair.Second);
+        }
+        portalGeometries = geometries.ToArray();
+        portalEndpoints = endpoints.ToArray();
+        for (int i = 0; i < 6; i++)
+        {
+            Vector3 hole = new Vector3(9999f, 9999f, 0f);
+            if (i < portalEndpoints.Length && portalEndpoints[i].InFloor)
+            {
+                ScenePortal p = portalEndpoints[i];
+                hole = new Vector3(p.Center.X, p.Center.Z, p.Radius);
+            }
+            Raylib.SetShaderValue<Vector3>(lighting, Raylib.GetShaderLocation(lighting, "hole" + i),
+                hole, (ShaderUniformDataType)2);
+        }
+		floor = Raylib.LoadModelFromMesh(Raylib.GenMeshPlane(scene.BaseSize, scene.BaseSize, 1, 1));
 		floor.Materials[0].Shader = lighting;
 		Raylib.SetMaterialTexture(ref *floor.Materials, (MaterialMapIndex)0, checker);
 		cube = Raylib.LoadModelFromMesh(Raylib.GenMeshCube(1f, 1f, 1f));
 		cube.Materials[0].Shader = lighting;
 	}
 
-	private void SetFloorOpening(string uniform, ScenePortal opening)
-	{
-		//IL_0025: Unknown result type (might be due to invalid IL or missing references)
-		//IL_002b: Unknown result type (might be due to invalid IL or missing references)
-		Vector3 vector = (opening.InFloor ? new Vector3(opening.FloorCenter, opening.Radius) : Vector3.Zero);
-		Raylib.SetShaderValue<Vector3>(lighting, Raylib.GetShaderLocation(lighting, uniform), vector, (ShaderUniformDataType)2);
-	}
 
 	public void Draw(SceneDefinition scene, CameraPose pose, PortalTravelView? travel, SkyLighting sky, CollectibleManager collectibles, float animationTime)
 	{
@@ -148,15 +184,19 @@ internal sealed class WorldRenderer : IDisposable
 			Raylib.DrawSphereEx(center, 0.24f, 6, 8, new Color(250, 224, 125, 255));
 			Raylib.DrawSphereWires(center, 0.3f, 6, 8, new Color(255, 250, 215, 220));
 		}
-		ScenePortalPair? portals = scene.Portals;
-		if (portals.HasValue)
-		{
-			ScenePortalPair valueOrDefault = portals.GetValueOrDefault();
-			firstGeometry?.Draw(travel);
-			secondGeometry?.Draw(travel);
-			portal.Draw(valueOrDefault.First, pose.Eye, travel?.Opening == valueOrDefault.First, sky.Fog);
-			portal.Draw(valueOrDefault.Second, pose.Eye, travel?.Opening == valueOrDefault.Second, sky.Fog);
-		}
+        foreach (SceneRamp ramp in scene.Ramps)
+        {
+            Raylib.DrawModelEx(cube, ramp.Center, ramp.RotationAxis, ramp.AngleDegrees,
+                ramp.BoxSize, new Color(187, 155, 100, 255));
+        }
+        for (int i = 0; i < portalEndpoints.Length; i++)
+        {
+            ScenePortal opening = portalEndpoints[i];
+            if (Vector3.DistanceSquared(opening.Center, pose.Eye) > 85f * 85f)
+                continue;
+            portalGeometries[i].Draw(travel);
+            portal.Draw(opening, pose.Eye, travel?.Opening == opening, sky.Fog);
+        }
 		Raylib.EndMode3D();
 	}
 
