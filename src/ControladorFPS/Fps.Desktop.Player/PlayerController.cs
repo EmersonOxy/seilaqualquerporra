@@ -11,10 +11,13 @@ internal sealed class PlayerController(Vector2 spawn)
 	private const float StandingHeight = 1.60f;
 	private const float CrouchedHeight = 1.10f;
 	private const float HighFallVoiceHeight = 3.5f;
+	private const float HighFallVoiceDelay = 0.65f;
 
 	private bool crouchToggle;
 
 	private bool highFallVoicePlayed;
+
+	private float highFallVoiceDelayElapsed;
 
 	private Vector2 velocity;
 
@@ -60,6 +63,7 @@ internal sealed class PlayerController(Vector2 spawn)
         velocity = Vector2.Zero;
         verticalVelocity = 0f;
         highFallVoicePlayed = false;
+		highFallVoiceDelayElapsed = 0f;
         exiting = null;
         traversal = null;
         Stop();
@@ -236,13 +240,22 @@ internal sealed class PlayerController(Vector2 spawn)
 		if (Grounded || verticalVelocity >= 0f)
 		{
 			highFallVoicePlayed = false;
+			highFallVoiceDelayElapsed = 0f;
 		}
 		else if (!highFallVoicePlayed &&
 			world.TryGetNearestSupportBelow(Feet, Elevation, 0.32f, out float support) &&
 			Elevation - support >= HighFallVoiceHeight)
 		{
-			highFallVoicePlayed = true;
-			FellFromHighPlace?.Invoke();
+			highFallVoiceDelayElapsed += dt;
+			if (highFallVoiceDelayElapsed >= HighFallVoiceDelay)
+			{
+				highFallVoicePlayed = true;
+				FellFromHighPlace?.Invoke();
+			}
+		}
+		else if (!highFallVoicePlayed)
+		{
+			highFallVoiceDelayElapsed = 0f;
 		}
 	}
 

@@ -14,7 +14,7 @@ Os dois aplicativos compartilham o mapa em `Documentos\ControladorFPS\Dados\map.
 
 ## Versão
 
-A nova linha organizada está na versão **1.0.2**. O repositório já contém uma tag histórica `v1.0.0` para a instalação inicial do jogo, então ela foi mantida. A release atual é marcada explicitamente para que os setups baixem esta linha 1.0. Os pacotes de build ficam fora do repositório, em `dist/`, e os dados dos usuários ficam em Documentos.
+A nova linha organizada está na versão **1.0.3**. O repositório já contém uma tag histórica `v1.0.0` para a instalação inicial do jogo, então ela foi mantida. A release atual é marcada explicitamente para que os setups baixem esta linha 1.0. Os pacotes de build ficam fora do repositório, em `dist/`, e os dados dos usuários ficam em Documentos.
 
 ## Estrutura
 
