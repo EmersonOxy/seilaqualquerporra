@@ -7,7 +7,7 @@ using Raylib_cs;
 
 namespace MapEditor;
 
-internal static unsafe class Program
+internal static unsafe partial class Program
 {
     private static MapDocument document = SceneMapIO.CreateDefault();
     private static SceneDefinition preview = document.ToScene();
@@ -35,6 +35,7 @@ internal static unsafe class Program
         Raylib.InitWindow(1500, 900, "Denffy - Editor de Mapas");
         Raylib.SetWindowMinSize(1100, 700);
         Raylib.SetTargetFPS(90);
+        InitializeEditorFont();
         try
         {
             if (File.Exists(mapPath)) document = SceneMapIO.Load(mapPath);
@@ -48,14 +49,16 @@ internal static unsafe class Program
         {
             float dt = Math.Clamp(Raylib.GetFrameTime(), .001f, .05f);
             Update(dt);
+            toastRemaining = MathF.Max(0f, toastRemaining - dt);
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(31, 33, 38, 255));
             DrawScene();
-            DrawInterface();
+            DrawModernInterface();
             Raylib.EndDrawing();
         }
         Raylib.UnloadModel(cube);
         Raylib.UnloadModel(cylinder);
+        if (smoothFont) Raylib.UnloadFont(uiFont);
         Raylib.CloseWindow();
     }
 
@@ -68,18 +71,18 @@ internal static unsafe class Program
     private static void Update(float dt)
     {
         Vector2 mouse = Raylib.GetMousePosition();
-        bool overView = mouse.X < ViewRight && mouse.Y > 48;
+        bool overView = mouse.X < ViewRight && mouse.Y > 105;
         bool ctrl = Key(341) || Key(345);
         bool shift = Key(340) || Key(344);
 
         if (ctrl && Press(83)) Save();
-        if (ctrl && Press(68) && selected != null) Duplicate();
-        if (editing == null && selected != null && Press(261)) Delete();
-        if (editing == null && Press(49)) mode = 0;
-        if (editing == null && Press(50)) mode = 1;
-        if (editing == null && Press(51)) mode = 2;
-        if (editing == null && Press(70) && selected != null)
-            eye = selected.Position + new Vector3(6f, 5f, 9f);
+        if (ctrl && Press(68) && (selected != null || activeItem != null)) DuplicateSelectedEntities();
+        if (editing == null && (selected != null || activeItem != null || activePortal != null) && Press(261)) DeleteSelectedEntities();
+        if (editing == null && Press(49)) ChangeMode(0);
+        if (editing == null && Press(50)) ChangeMode(1);
+        if (editing == null && Press(51)) ChangeMode(2);
+        if (editing == null && Press(70) && SelectedPivot() is Vector3 target)
+            eye = target + new Vector3(6f, 5f, 9f);
 
         if (!Down(Raylib.IsWindowFocused())) looking = false;
         if (overView && MousePress(1) && !looking)
@@ -117,39 +120,34 @@ internal static unsafe class Program
         {
             if (MousePress(0))
             {
-                draggedAxis = selected != null ? PickGizmo(mouse) : -1;
+                draggedAxis = !ctrl && !linking && SelectedPivot().HasValue
+                    ? PickNewGizmo(mouse) : -1;
                 dragging = draggedAxis >= 0;
-                if (!dragging)
-                {
-                    selected = Pick(mouse);
-                    draggedAxis = -1;
-                }
+                if (!dragging) ViewClick(mouse, ctrl);
             }
-            if (dragging && MouseDown(0) && selected != null)
+            if (dragging && MouseDown(0) && SelectedPivot() is Vector3 pivot)
             {
                 Vector2 delta = Raylib.GetMouseDelta();
                 Vector3 axis = Axis(draggedAxis);
-                Vector2 a = Raylib.GetWorldToScreen(selected.Position, camera);
-                Vector2 b = Raylib.GetWorldToScreen(selected.Position + axis * 2f, camera);
+                Vector2 a = Raylib.GetWorldToScreen(pivot, camera);
+                Vector2 b = Raylib.GetWorldToScreen(pivot + axis * 2f, camera);
                 Vector2 ab = b - a;
-                if (ab.LengthSquared() > 1f)
+                if (ab.LengthSquared() > 1f || mode == 1)
                 {
-                    float change = Vector2.Dot(delta, Vector2.Normalize(ab)) * (shift ? .005f : .024f);
+                    float change = mode == 1 ? (delta.X - delta.Y) * .012f :
+                        Vector2.Dot(delta, Vector2.Normalize(ab)) * (shift ? .005f : .024f);
                     if (MathF.Abs(change) > .00001f)
-                    {
-                        if (mode == 0)
-                            selected.Position += axis * change;
-                        if (mode == 1)
-                            selected.Rotation += axis * (change * 18f);
-                        if (mode == 2)
-                            ResizeAxis(selected, draggedAxis, change, uniform);
-                        Changed();
-                    }
+                        TransformSelection(draggedAxis, change);
                 }
             }
         }
+        UpdateMarquee(mouse);
         if (!MouseDown(0)) { dragging = false; draggedAxis = -1; }
-        if (editing != null) HandleTextEdit();
+        if (editing != null)
+        {
+            if (editing.StartsWith("node:")) HandleNodeTextEdit();
+            else HandleTextEdit();
+        }
     }
 
     private static Vector3 Forward() =>
@@ -255,19 +253,7 @@ internal static unsafe class Program
             Raylib.DrawSphereWires(p.Second.Center, .18f, 5, 7, Color.SkyBlue);
         }
 
-        if (selected != null)
-        {
-            Vector3 half = selected.Size * .5f;
-            Raylib.DrawCubeWiresV(selected.Position, selected.Size, new Color(244, 211, 93, 255));
-            Raylib.DrawSphereWires(selected.Position, .18f, 6, 6, Color.White);
-            for (int i = 0; i < 3; i++)
-            {
-                Color color = i == 0 ? Color.Red : i == 1 ? Color.Green : Color.Blue;
-                Raylib.DrawLine3D(selected.Position,
-                    selected.Position + Axis(i) * 2f, color);
-                Raylib.DrawSphere(selected.Position + Axis(i) * 2f, .11f, color);
-            }
-        }
+        DrawWorldMarkers();
         Raylib.EndMode3D();
     }
 
@@ -310,8 +296,8 @@ internal static unsafe class Program
 
         Raylib.DrawRectangle((int)right, 48, (int)PanelWidth,
             Raylib.GetScreenHeight(), new Color(38, 41, 48, 255));
-        Raylib.DrawText("HIERARQUIA", (int)right + 14, 62, 20, Color.White);
-        Raylib.DrawText($"{document.Objects.Count} objetos", (int)right + 280, 66, 15, Color.LightGray);
+        DrawTextSmooth("HIERARQUIA", (int)right + 14, 62, 20, Color.White);
+        DrawTextSmooth($"{document.Objects.Count} objetos", (int)right + 280, 66, 15, Color.LightGray);
         int listTop = 95;
         int visible = 9;
         objectScroll = Math.Clamp(objectScroll, 0, Math.Max(0, document.Objects.Count - visible));
@@ -331,22 +317,22 @@ internal static unsafe class Program
         Raylib.DrawLine((int)right + 12, y, Raylib.GetScreenWidth() - 12, y, Color.Gray);
         y += 13;
         if (selected == null)
-            Raylib.DrawText("Selecione um objeto para editar.", (int)right + 18, y, 18, Color.LightGray);
+            DrawTextSmooth("Selecione um objeto para editar.", (int)right + 18, y, 18, Color.LightGray);
         else
             DrawInspector(selected, (int)right + 12, ref y);
 
         Raylib.DrawRectangle(0, Raylib.GetScreenHeight() - 30, Raylib.GetScreenWidth(), 30,
             new Color(22, 24, 28, 255));
         string info = $"1 mover  2 girar  3 dimensoes  |  Botao direito + WASD navegar  |  Ctrl+S salvar  |  { (modified ? "* NAO SALVO * " : "Salvo") }";
-        Raylib.DrawText(info, 13, Raylib.GetScreenHeight() - 22, 14, Color.White);
+        DrawTextSmooth(info, 13, Raylib.GetScreenHeight() - 22, 14, Color.White);
         if (status.Length > 0)
-            Raylib.DrawText(status.Length > 58 ? status[..58] : status,
+            DrawTextSmooth(status.Length > 58 ? status[..58] : status,
                 Raylib.GetScreenWidth() - 490, Raylib.GetScreenHeight() - 22, 13, Color.LightGray);
     }
 
     private static void DrawInspector(MapObject o, int x, ref int y)
     {
-        Raylib.DrawText(o.Name, x + 5, y, 19, Color.White); y += 32;
+        DrawTextSmooth(o.Name, x + 5, y, 19, Color.White); y += 32;
         int modeY = y;
         if (Button(new Rectangle(x, y, 103, 27), mode == 0 ? "[MOVER]" : "Mover")) mode = 0;
         if (Button(new Rectangle(x + 111, y, 103, 27), mode == 1 ? "[GIRAR]" : "Girar")) mode = 1;
@@ -369,7 +355,7 @@ internal static unsafe class Program
         if (Button(new Rectangle(x + 134, y, 71, 26), "X 0.9")) { o.Size *= .9f; Changed(); }
         if (Button(new Rectangle(x + 210, y, 71, 26), "X 1.1")) { o.Size *= 1.1f; Changed(); }
         y += 37;
-        Raylib.DrawText("FACE INDIVIDUAL (expandir/retrair)", x + 3, y, 15, Color.LightGray);
+        DrawTextSmooth("FACE INDIVIDUAL (expandir/retrair)", x + 3, y, 15, Color.LightGray);
         y += 23;
         for (int axis = 0; axis < 3; axis++)
         {
@@ -399,13 +385,13 @@ internal static unsafe class Program
     {
         Vector3 current = property switch { 0 => o.Position, 1 => o.Rotation, _ => o.Size };
         float value = axis == 0 ? current.X : axis == 1 ? current.Y : current.Z;
-        Raylib.DrawText(label, x + 4, y + 6, 17, Color.LightGray);
+        DrawTextSmooth(label, x + 4, y + 6, 17, Color.LightGray);
         float step = property == 1 ? 5f : .25f;
         if (Button(new Rectangle(x + 76, y, 32, 26), "-")) Set(value - step);
         Rectangle field = new(x + 114, y, 169, 26);
         bool active = editing == label;
         Raylib.DrawRectangleRec(field, active ? new Color(76, 92, 110, 255) : new Color(50, 54, 62, 255));
-        Raylib.DrawText(active ? editBuffer : value.ToString("0.###"),
+        DrawTextSmooth(active ? editBuffer : value.ToString("0.###"),
             (int)field.X + 9, y + 6, 16, Color.White);
         if (MousePress(0) && Raylib.CheckCollisionPointRec(Raylib.GetMousePosition(), field))
         {
@@ -468,7 +454,7 @@ internal static unsafe class Program
         Raylib.DrawRectangleRec(rect, hovered ? new Color(74, 88, 111, 255) :
             new Color(56, 62, 74, 255));
         Raylib.DrawRectangleLinesEx(rect, 1f, new Color(88, 96, 107, 255));
-        Raylib.DrawText(text.Length > 42 ? text[..42] : text, (int)rect.X + 6,
+        DrawTextSmooth(text.Length > 42 ? text[..42] : text, (int)rect.X + 6,
             (int)rect.Y + (compact ? 5 : 7), compact ? 14 : 15, Color.White);
         return hovered && MousePress(0);
     }
@@ -492,9 +478,10 @@ internal static unsafe class Program
             }
         };
         document.Objects.Add(o);
-        selected = o;
-        objectScroll = Math.Max(0, document.Objects.Count - 9);
+        SelectObject(o, false);
+        objectScroll = Math.Max(0, document.Objects.Count - 8);
         Changed();
+        Toast("Objeto adicionado ao mapa");
     }
 
     private static void Duplicate()
@@ -563,8 +550,9 @@ internal static unsafe class Program
             SceneMapIO.Save(document, mapPath);
             modified = false;
             status = "Mapa salvo. O jogo carrega automaticamente.";
+            Toast("Mapa salvo! O jogo foi atualizado.");
         }
-        catch (Exception ex) { status = "Falha ao salvar: " + ex.Message; }
+        catch (Exception ex) { status = "Falha ao salvar: " + ex.Message; Toast(status, true); }
     }
 
     private static void Reload()
@@ -573,9 +561,10 @@ internal static unsafe class Program
         {
             document = SceneMapIO.LoadOrDefault(mapPath);
             preview = document.ToScene();
-            selected = null; modified = false;
+            ClearSelection(); modified = false;
             status = "Mapa recarregado.";
+            Toast("Mapa reaberto com sucesso");
         }
-        catch (Exception ex) { status = "Falha ao abrir: " + ex.Message; }
+        catch (Exception ex) { status = "Falha ao abrir: " + ex.Message; Toast(status, true); }
     }
 }
