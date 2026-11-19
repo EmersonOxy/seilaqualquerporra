@@ -24,7 +24,7 @@ internal static class Program
 		}
 		Raylib.SetConfigFlags((ConfigFlags)8228);
 		Raylib.InitWindow(1280, 800, "Controlador FPS");
-		if (!CBool.op_Implicit(Raylib.IsWindowReady()))
+		if (!((sbyte)(Raylib.IsWindowReady()) != 0))
 		{
 			return;
 		}
@@ -59,7 +59,7 @@ internal static class Program
 		using OutlinePostProcess outlinePostProcess = new OutlinePostProcess();
 		using SkyRenderer skyRenderer = new SkyRenderer();
 		using Hud hud = new Hud();
-		while (!CBool.op_Implicit(Raylib.WindowShouldClose()))
+		while (!((sbyte)(Raylib.WindowShouldClose()) != 0))
 		{
 			float num = Math.Clamp(Raylib.GetFrameTime(), 0f, 0.25f);
 			collectibleAnimation += num;
