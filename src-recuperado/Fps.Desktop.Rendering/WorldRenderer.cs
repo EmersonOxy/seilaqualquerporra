@@ -87,10 +87,10 @@ internal sealed class WorldRenderer : IDisposable
 			secondGeometry = new PortalGeometry(valueOrDefault.Second);
 		}
 		floor = Raylib.LoadModelFromMesh(Raylib.GenMeshPlane(scene.Size, scene.Size, 1, 1));
-		Unsafe.Write(&((Material)floor.Materials).Shader, lighting);
+		floor.Materials[0].Shader = lighting;
 		Raylib.SetMaterialTexture(ref *floor.Materials, (MaterialMapIndex)0, checker);
 		cube = Raylib.LoadModelFromMesh(Raylib.GenMeshCube(1f, 1f, 1f));
-		Unsafe.Write(&((Material)cube.Materials).Shader, lighting);
+		cube.Materials[0].Shader = lighting;
 	}
 
 	private void SetFloorOpening(string uniform, ScenePortal opening)
