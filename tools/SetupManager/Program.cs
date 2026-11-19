@@ -117,7 +117,7 @@ internal sealed class SetupProgress : Form
             else
             {
                 status.Text = action == "update" ? "Buscando a ultima versao no GitHub..." : "Baixando e instalando " + appName + "...";
-                setupPath = Path.Combine(cacheDir, setupAsset + ".download");
+                setupPath = Path.Combine(cacheDir, setupAsset + ".download.exe");
                 if (File.Exists(setupPath)) File.Delete(setupPath);
                 using (var client = new WebClient())
                     await client.DownloadFileTaskAsync(new Uri(setupUrl), setupPath);
