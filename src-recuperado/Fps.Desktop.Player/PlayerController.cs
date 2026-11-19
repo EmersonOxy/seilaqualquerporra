@@ -108,6 +108,35 @@ internal sealed class PlayerController(Vector2 spawn)
 	{
 		Vector2 movement = input.Movement;
 		float num = movement.Length();
+        // A vertical ladder is climbed with W and descended with S.
+        // Jump still exits the ladder; gravity is disabled only while climbing.
+        if (MathF.Abs(movement.Y) > .01f && !input.Jump &&
+            world.TryGetLadder(Feet, Elevation, Height, out SceneLadder ladder))
+        {
+            float bottom = ladder.Center.Y - ladder.Size.Y * .5f;
+            float top = ladder.Center.Y + ladder.Size.Y * .5f + .18f;
+            float desired = Math.Clamp(Elevation + movement.Y * 2.35f * dt,
+                bottom - .12f, top);
+            if (world.Fits(Feet, Height, .32f, desired))
+                Elevation = desired;
+            verticalVelocity = 0f;
+            velocity = Vector2.Zero;
+            Running = false;
+            Speed = 0f;
+            Grounded = false;
+            Stamina.Update(false, dt);
+            if (movement.Y > 0f && Elevation >= top - .03f)
+            {
+                // Step inward from the ladder onto the upper landing.
+                Vector3 forward = Vector3.Transform(Vector3.UnitZ,
+                    SceneTransform.Orientation(ladder.RotationDegrees));
+                Vector2 delta = new(-forward.X * 2.4f * dt, -forward.Z * 2.4f * dt);
+                float footHeight = Elevation;
+                Feet = world.Move(Feet, delta, Height, .32f, ref footHeight, false);
+                Elevation = footHeight;
+            }
+            return;
+        }
 		bool flag = num > 0f && input.Sprint && !input.Slow && !Stamina.Exhausted;
 		bool flag2 = crouchToggle || input.CrouchHeld;
 		bool flag3 = Height == 1.7f || ((flag || !flag2) && world.Fits(Feet, 1.7f, 0.32f, Elevation));
@@ -164,7 +193,14 @@ internal sealed class PlayerController(Vector2 spawn)
 		float num = Elevation + verticalVelocity * dt;
 		Elevation = world.MoveVertical(Feet, Elevation, num, Height, 0.32f);
 		Grounded = Elevation != num && verticalVelocity < 0f;
-		if (Elevation != num)
+        if (!Grounded && verticalVelocity <= 0f &&
+            world.GroundBelow(Feet, Elevation, .32f, out float surfaceY) &&
+            MathF.Abs(surfaceY - Elevation) <= .085f)
+        {
+            Elevation = surfaceY;
+            Grounded = true;
+        }
+		if (Grounded || Elevation != num)
 		{
 			verticalVelocity = 0f;
 		}
