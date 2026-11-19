@@ -1,5 +1,8 @@
 name: Recuperar codigo C# do Controlador FPS v1.4.0
 on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/recuperar-fonte.yml']
   push:
     branches: [feature/coletaveis-portais]
     paths: ['.github/workflows/recuperar-fonte.yml']
