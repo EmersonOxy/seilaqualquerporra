@@ -187,8 +187,7 @@ internal sealed class CollisionWorld
         float currentY, bool grounded, out float newY)
     {
         newY = currentY;
-        if (grounded && TrySupport(goal, currentY - .04f, currentY + .22f, radius, out float stepY) &&
-            stepY > currentY)
+        if (grounded && TrySupport(goal, currentY - .24f, currentY + .22f, radius, out float stepY))
             newY = stepY;
 
         return Fits(goal, height, radius, newY);
