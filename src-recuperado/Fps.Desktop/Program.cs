@@ -46,7 +46,17 @@ internal static class Program
 		Raylib.SetWindowMinSize(360, 260);
 		Raylib.SetExitKey((KeyboardKey)0);
 		Raylib.SetTargetFPS(144);
-		SceneManager sceneManager = new SceneManager(ArenaScene.Create());
+		string mapPath = SceneMapIO.DefaultPath;
+        SceneDefinition initialScene;
+        try { initialScene = SceneMapIO.LoadOrDefault(mapPath).ToScene(); }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine("Mapa invalido; carregando mapa padrao: " + ex.Message);
+            initialScene = SceneMapIO.CreateDefault().ToScene();
+        }
+        DateTime mapModified = File.Exists(mapPath) ? File.GetLastWriteTimeUtc(mapPath) : DateTime.MinValue;
+        float mapCheckElapsed = 0f;
+        SceneManager sceneManager = new SceneManager(initialScene);
 		PlayerController playerController = new PlayerController(sceneManager.Active.Spawn);
 		CollectibleManager collectibleManager = new CollectibleManager(sceneManager.Active);
 		playerController.PortalTraversed += collectibleManager.NotifyPortalTraversed;
@@ -55,13 +65,42 @@ internal static class Program
 		DesktopInput desktopInput = new DesktopInput();
 		FpsCamera fpsCamera = new FpsCamera();
 		GameUpdates gameUpdates = (installed ? new GameUpdates() : null);
-		using WorldRenderer worldRenderer = new WorldRenderer(sceneManager.Active);
+		WorldRenderer worldRenderer = new WorldRenderer(sceneManager.Active);
 		using OutlinePostProcess outlinePostProcess = new OutlinePostProcess();
 		using SkyRenderer skyRenderer = new SkyRenderer();
 		using Hud hud = new Hud();
 		while (!((sbyte)(Raylib.WindowShouldClose()) != 0))
 		{
 			float num = Math.Clamp(Raylib.GetFrameTime(), 0f, 0.25f);
+            mapCheckElapsed += num;
+            if (mapCheckElapsed >= .6f)
+            {
+                mapCheckElapsed = 0f;
+                DateTime updated = File.Exists(mapPath) ? File.GetLastWriteTimeUtc(mapPath) : DateTime.MinValue;
+                if (updated != mapModified && updated != DateTime.MinValue)
+                {
+                    try
+                    {
+                        SceneDefinition nextScene = SceneMapIO.Load(mapPath).ToScene();
+                        // Build renderer before destroying the old scene to avoid partial updates.
+                        WorldRenderer nextRenderer = new WorldRenderer(nextScene);
+                        worldRenderer.Dispose();
+                        worldRenderer = nextRenderer;
+                        sceneManager.Load(nextScene);
+                        playerController.PortalTraversed -= collectibleManager.NotifyPortalTraversed;
+                        collectibleManager = new CollectibleManager(nextScene);
+                        playerController.PortalTraversed += collectibleManager.NotifyPortalTraversed;
+                        playerController.Respawn(nextScene.Spawn);
+                        completionHandled = false;
+                        collectibleAnimation = 0f;
+                        mapModified = updated;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine("Falha ao atualizar mapa: " + ex.Message);
+                    }
+                }
+            }
 			collectibleAnimation += num;
 			bool captured = desktopInput.Captured;
 			InputState input = desktopInput.Poll();
@@ -128,5 +167,6 @@ internal static class Program
 			CollectibleHud.Draw(collectibleManager);
 			Raylib.EndDrawing();
 		}
+        worldRenderer.Dispose();
 	}
 }
