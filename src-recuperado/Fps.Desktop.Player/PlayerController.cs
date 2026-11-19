@@ -12,6 +12,8 @@ internal sealed class PlayerController(Vector2 spawn)
 
 	private Vector2 velocity;
 
+    private Vector2 slopeVelocity;
+
 	private float verticalVelocity;
 
 	private ScenePortal? exiting;
@@ -166,20 +168,38 @@ internal sealed class PlayerController(Vector2 spawn)
 			float num7 = (num5 ? 34f : 27f) * num6 * dt;
 			velocity = ((num4 <= num7) ? vector : (velocity + vector2 * (num7 / num4)));
 		}
+        // Independent gravity-induced sliding means neutral movement no longer
+        // freezes the capsule on a steep incline. It works even when WASD is idle.
+        if (Grounded && world.TryRampSlide(Feet, Elevation, out Vector2 downhill, out float gravityFactor))
+        {
+            float acceleration = 12f * gravityFactor;
+            slopeVelocity += downhill * (acceleration * dt);
+            if (slopeVelocity.LengthSquared() > 6f * 6f)
+                slopeVelocity = Vector2.Normalize(slopeVelocity) * 6f;
+        }
+        else
+        {
+            float damping = Math.Clamp(11f * dt, 0f, 1f);
+            slopeVelocity *= 1f - damping;
+        }
+
+        Vector2 travelVelocity = velocity + slopeVelocity;
 		Vector2 feet = Feet;
 		float elevation = Elevation;
 		float movedElevation = Elevation;
-		Feet = world.Move(Feet, velocity * dt, Height, 0.32f, ref movedElevation, Grounded);
+		Feet = world.Move(Feet, travelVelocity * dt, Height, 0.32f, ref movedElevation, Grounded);
 		Elevation = movedElevation;
 		Vector2 vector3 = (Feet - feet) / dt;
-		if (Feet.X != feet.X + velocity.X * dt)
-		{
-			velocity.X = vector3.X;
-		}
-		if (Feet.Y != feet.Y + velocity.Y * dt)
-		{
-			velocity.Y = vector3.Y;
-		}
+        if (MathF.Abs(Feet.X - (feet.X + travelVelocity.X * dt)) > .001f)
+        {
+            velocity.X = vector3.X;
+            slopeVelocity.X = 0f;
+        }
+        if (MathF.Abs(Feet.Y - (feet.Y + travelVelocity.Y * dt)) > .001f)
+        {
+            velocity.Y = vector3.Y;
+            slopeVelocity.Y = 0f;
+        }
 		Speed = vector3.Length();
 		UpdateElevation(world, dt);
 		CheckPortalEntry(world, feet, elevation, new Vector3(0f - sin, 0f, 0f - cos));
