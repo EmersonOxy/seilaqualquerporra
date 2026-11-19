@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Fps.Desktop.Player;
+using Fps.Desktop.Gameplay;
 using Fps.Desktop.Scenes;
 using Raylib_cs;
 
@@ -100,7 +101,7 @@ internal sealed class WorldRenderer : IDisposable
 		Raylib.SetShaderValue<Vector3>(lighting, Raylib.GetShaderLocation(lighting, uniform), vector, (ShaderUniformDataType)2);
 	}
 
-	public void Draw(SceneDefinition scene, CameraPose pose, PortalTravelView? travel, SkyLighting sky)
+	public void Draw(SceneDefinition scene, CameraPose pose, PortalTravelView? travel, SkyLighting sky, CollectibleManager collectibles, float animationTime)
 	{
 		//IL_0029: Unknown result type (might be due to invalid IL or missing references)
 		//IL_002f: Unknown result type (might be due to invalid IL or missing references)
@@ -137,6 +138,15 @@ internal sealed class WorldRenderer : IDisposable
 				_ => new Color(76, 85, 92, 255), 
 			};
 			Raylib.DrawModelEx(cube, sceneBox.Center, Vector3.UnitY, 0f, sceneBox.Size, val2);
+		}
+		for (int i = 0; i < collectibles.Items.Count; i++)
+		{
+			CollectibleItem item = collectibles.Items[i];
+			if (item.Collected || !collectibles.Available(item))
+				continue;
+			Vector3 center = item.Position + Vector3.UnitY * (MathF.Sin(animationTime * 2.8f + i) * 0.09f);
+			Raylib.DrawSphereEx(center, 0.24f, 6, 8, new Color(250, 224, 125, 255));
+			Raylib.DrawSphereWires(center, 0.3f, 6, 8, new Color(255, 250, 215, 220));
 		}
 		ScenePortalPair? portals = scene.Portals;
 		if (portals.HasValue)
