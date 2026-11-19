@@ -121,10 +121,9 @@ internal static unsafe partial class Program
             Vector3 f = Forward();
             Vector3 right = Vector3.Normalize(Vector3.Cross(f, Vector3.UnitY));
             Vector3 lateral = new(right.X, 0f, right.Z);
-            Vector3 flat = Vector3.Normalize(new Vector3(f.X, 0f, f.Z));
             Vector3 move = Vector3.Zero;
-            if (Key(87)) move += flat;
-            if (Key(83)) move -= flat;
+            if (Key(87)) move += f;
+            if (Key(83)) move -= f;
             if (Key(68)) move += lateral;
             if (Key(65)) move -= lateral;
             if (Key(69)) move += Vector3.UnitY;
