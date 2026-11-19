@@ -90,6 +90,10 @@ internal static class Program
 			{
 				playerController.Update(default, sceneManager.Collision, fpsCamera.Yaw, num);
 			}
+			if (!playerController.IsTraversing && playerController.Elevation < -14f)
+            {
+                playerController.Respawn(sceneManager.Active.Spawn);
+            }
 			if (!playerController.IsTraversing && !collectibleManager.Completed)
 			{
 				collectibleManager.Update(playerController.Feet, playerController.Elevation, playerController.Height);
