@@ -399,19 +399,34 @@ internal static unsafe partial class Program
             editBuffer = value.ToString("0.###");
         }
         if (Button(new Rectangle(x + 289, y, 32, 26), "+")) Set(value + step);
-        void Set(float newValue)
-        {
-            if (property == 2 && newValue < .05f) return;
-            Vector3 v = property switch { 0 => o.Position, 1 => o.Rotation, _ => o.Size };
-            if (axis == 0) v.X = newValue;
-            else if (axis == 1) v.Y = newValue;
-            else v.Z = newValue;
-            if (property == 0) o.Position = v;
-            else if (property == 1) o.Rotation = v;
-            else o.Size = v;
-            Changed();
-        }
+        void Set(float newValue) => SetSelectedNumeric(o, property, axis, newValue);
         y += 29;
+    }
+
+    private static void SetSelectedNumeric(MapObject anchor, int property, int axis, float value)
+    {
+        Vector3 a = property switch { 0 => anchor.Position, 1 => anchor.Rotation, _ => anchor.Size };
+        float oldValue = axis == 0 ? a.X : axis == 1 ? a.Y : a.Z;
+        float change = value - oldValue;
+        if (!float.IsFinite(value) || (property == 2 &&
+            selectedObjects.Any(obj =>
+            {
+                Vector3 v = obj.Size;
+                return (axis == 0 ? v.X : axis == 1 ? v.Y : v.Z) + change < .05f;
+            })))
+            return;
+        if (selectedObjects.Count == 0) selectedObjects.Add(anchor);
+        foreach (MapObject obj in selectedObjects)
+        {
+            Vector3 field = property switch { 0 => obj.Position, 1 => obj.Rotation, _ => obj.Size };
+            if (axis == 0) field.X += change;
+            else if (axis == 1) field.Y += change;
+            else field.Z += change;
+            if (property == 0) obj.Position = field;
+            else if (property == 1) obj.Rotation = field;
+            else obj.Size = field;
+        }
+        Changed();
     }
 
     private static void HandleTextEdit()
@@ -432,18 +447,7 @@ internal static unsafe partial class Program
         {
             int property = editing[0] == 'P' ? 0 : editing[0] == 'R' ? 1 : 2;
             int axis = editing[1] == 'X' ? 0 : editing[1] == 'Y' ? 1 : 2;
-            if (property != 2 || v >= .05f)
-            {
-                Vector3 old = property == 0 ? selected.Position :
-                    property == 1 ? selected.Rotation : selected.Size;
-                if (axis == 0) old.X = v;
-                if (axis == 1) old.Y = v;
-                if (axis == 2) old.Z = v;
-                if (property == 0) selected.Position = old;
-                if (property == 1) selected.Rotation = old;
-                if (property == 2) selected.Size = old;
-                Changed();
-            }
+            SetSelectedNumeric(selected, property, axis, v);
         }
         editing = null;
     }
