@@ -1,4 +1,4 @@
-name: Publicar jogo e editor separadamente
+name: Publicar jogo, editor e setup geral
 
 on:
   push:
@@ -54,82 +54,34 @@ jobs:
         run: |
           ./.tools/vpk.exe upload github --repoUrl https://github.com/${{ github.repository }} --token $env:GH_TOKEN --outputDir dist/editor-release --channel editor --publish --merge --tag $env:GITHUB_REF_NAME --releaseName "Controlador FPS $env:GITHUB_REF_NAME"
 
-      - name: Criar pastas de instalação lado a lado
+      - name: Compilar setups de gerenciamento
         shell: pwsh
         run: |
-          $gameDir = 'dist/installers/Jogo'
-          $editorDir = 'dist/installers/Editor'
+          $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+          $framework = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
+          New-Item -ItemType Directory -Force -Path dist/installers/Jogo, dist/installers/Editor | Out-Null
+          $source = 'tools\SetupManager\Program.cs'
+          $references = @("/reference:$framework\System.dll", "/reference:$framework\System.Drawing.dll", "/reference:$framework\System.Windows.Forms.dll")
+          & $compiler /nologo /target:winexe /out:dist\installers\Jogo\Setup.exe $references $source
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $compiler /nologo /target:winexe /define:EDITOR_SETUP /out:dist\installers\Editor\Setup.exe $references $source
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Montar pacote geral com jogo e editor
+        shell: pwsh
+        run: |
+          $root = 'dist/installers/ControladorFPS'
+          $gameDir = Join-Path $root 'Jogo'
+          $editorDir = Join-Path $root 'Editor'
           New-Item -ItemType Directory -Force -Path $gameDir, $editorDir | Out-Null
-          Copy-Item 'dist/game-release/ControladorFPS-win-Setup.exe' "$gameDir/ControladorFPS-win-Setup.exe"
-          Copy-Item 'dist/editor-release/MapEditor-editor-Setup.exe' "$editorDir/MapEditor-editor-Setup.exe"
-          @'
-          @echo off
-          for %%I in ("%~dp0.") do set "APP_HOME=%%~fI"
-          "%APP_HOME%\ControladorFPS-win-Setup.exe" --installto "%APP_HOME%"
-          '@ | Set-Content "$gameDir/Instalar-Jogo.cmd" -Encoding ascii
-          @'
-          @echo off
-          for %%I in ("%~dp0.") do set "APP_HOME=%%~fI"
-          "%APP_HOME%\MapEditor-editor-Setup.exe" --installto "%APP_HOME%"
-          '@ | Set-Content "$editorDir/Instalar-Editor.cmd" -Encoding ascii
-          @'
-          JOGO
+          Copy-Item dist/installers/Jogo/Setup.exe "$gameDir/Setup.exe"
+          Copy-Item dist/installers/Editor/Setup.exe "$editorDir/Setup.exe"
+          Copy-Item tools/SetupManager/LEIA-ME.txt "$root/LEIA-ME.txt"
+          Compress-Archive -Path $root -DestinationPath dist/ControladorFPS-PacoteGeral.zip -CompressionLevel Optimal
 
-          Instalar-Jogo.cmd: primeira instalação nesta pasta.
-          ControladorFPS-win-Setup.exe: instalador do jogo.
-          Atualizar-Jogo.cmd: atualiza a instalação sem abrir o jogo.
-          Feche o jogo antes de atualizar.
-          '@ | Set-Content "$gameDir/LEIA-ME.txt" -Encoding utf8
-          @'
-          EDITOR
-
-          Instalar-Editor.cmd: primeira instalação nesta pasta.
-          MapEditor-editor-Setup.exe: instalador do editor.
-          Atualizar-Editor.cmd: atualiza a instalação sem abrir o editor.
-          Feche o editor antes de atualizar.
-          '@ | Set-Content "$editorDir/LEIA-ME.txt" -Encoding utf8
-          @'
-          @echo off
-          setlocal
-          for %%I in ("%~dp0.") do set "APP_HOME=%%~fI"
-          set "TARGET="
-          if exist "%APP_HOME%current\sq.version" set "TARGET=%APP_HOME%"
-          if not defined TARGET if exist "%LOCALAPPDATA%\ControladorFPS\current\sq.version" set "TARGET=%LOCALAPPDATA%\ControladorFPS"
-          if not defined TARGET set "TARGET=%APP_HOME%"
-          echo Atualizando o Controlador FPS sem iniciar o jogo...
-          "%APP_HOME%\ControladorFPS-win-Setup.exe" --installto "%TARGET%" --silent
-          if errorlevel 1 (
-            echo Falha ao atualizar. Feche o jogo, se estiver aberto, e tente novamente.
-            pause
-            exit /b 1
-          )
-          echo Atualizacao concluida. O jogo nao foi aberto.
-          pause
-          '@ | Set-Content "$gameDir/Atualizar-Jogo.cmd" -Encoding ascii
-          @'
-          @echo off
-          setlocal
-          for %%I in ("%~dp0.") do set "APP_HOME=%%~fI"
-          set "TARGET="
-          if exist "%APP_HOME%current\sq.version" set "TARGET=%APP_HOME%"
-          if not defined TARGET if exist "%LOCALAPPDATA%\MapEditor\current\sq.version" set "TARGET=%LOCALAPPDATA%\MapEditor"
-          if not defined TARGET set "TARGET=%APP_HOME%"
-          echo Atualizando o Editor sem iniciar o aplicativo...
-          "%APP_HOME%\MapEditor-editor-Setup.exe" --installto "%TARGET%" --silent
-          if errorlevel 1 (
-            echo Falha ao atualizar. Feche o editor, se estiver aberto, e tente novamente.
-            pause
-            exit /b 1
-          )
-          echo Atualizacao concluida. O editor nao foi aberto.
-          pause
-          '@ | Set-Content "$editorDir/Atualizar-Editor.cmd" -Encoding ascii
-          Compress-Archive -Path $gameDir -DestinationPath dist/ControladorFPS-Jogo.zip -CompressionLevel Optimal
-          Compress-Archive -Path $editorDir -DestinationPath dist/MapEditor-Editor.zip -CompressionLevel Optimal
-
-      - name: Publicar pacotes de instalação nas pastas escolhidas
+      - name: Publicar pacote geral
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload $env:GITHUB_REF_NAME dist/ControladorFPS-Jogo.zip dist/MapEditor-Editor.zip --repo $env:GITHUB_REPOSITORY --clobber
+          gh release upload $env:GITHUB_REF_NAME dist/ControladorFPS-PacoteGeral.zip --repo $env:GITHUB_REPOSITORY --clobber
