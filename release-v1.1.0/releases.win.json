@@ -1,0 +1,22 @@
+{
+  "Assets": [
+    {
+      "PackageId": "ControladorFPS",
+      "Version": "1.1.0",
+      "Type": "Full",
+      "FileName": "ControladorFPS-1.1.0-full.nupkg",
+      "SHA1": "B5F4251EECBDE8680E05955D05DEA5A26FB6594A",
+      "SHA256": "0D57F2E8E7831949F39E3E63FF2B89258FE4CB29EE6D8D025B6D0E607B7DB33F",
+      "Size": 37114098
+    },
+    {
+      "PackageId": "ControladorFPS",
+      "Version": "1.1.0",
+      "Type": "Delta",
+      "FileName": "ControladorFPS-1.1.0-delta.nupkg",
+      "SHA1": "EF664D2CF9AF832433B664B67F6109AB097FA88B",
+      "SHA256": "B9D247FD97049E50DCBE25F6CC06D6B2B8B43000A45F68AD6E9F52D2CB25514A",
+      "Size": 24567
+    }
+  ]
+}
