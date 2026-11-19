@@ -38,6 +38,8 @@ internal sealed class PlayerController(Vector2 spawn)
 
 	public StaminaMeter Stamina { get; } = new StaminaMeter();
 
+	public event Action<ScenePortal, ScenePortal>? PortalTraversed;
+
 	public void Stop()
 	{
 		ScenePortal? scenePortal = exiting;
@@ -235,5 +237,6 @@ internal sealed class PlayerController(Vector2 spawn)
 		verticalVelocity = (active.Exit.InFloor ? 6.2f : (vector2.Y * 5f));
 		exiting = (active.Exit.InFloor ? new ScenePortal?(active.Exit) : ((ScenePortal?)null));
 		traversal = null;
+		PortalTraversed?.Invoke(active.Entry, active.Exit);
 	}
 }
