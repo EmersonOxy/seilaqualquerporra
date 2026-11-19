@@ -8,3 +8,9 @@ internal readonly record struct SceneCylinder(
 
 internal readonly record struct SceneLadder(
     Vector3 Center, Vector3 Size, Vector3 RotationDegrees);
+
+internal readonly record struct SceneWater(
+    Vector3 Center, Vector3 Size, Vector3 RotationDegrees);
+
+internal readonly record struct SceneGrass(
+    Vector3 Center, Vector3 Size, Vector3 RotationDegrees);

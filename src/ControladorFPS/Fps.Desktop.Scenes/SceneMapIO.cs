@@ -7,7 +7,7 @@ using System.Text.Json.Serialization;
 
 namespace Fps.Desktop.Scenes;
 
-internal enum MapObjectKind { Box, Ramp, Cylinder, Stairs, Ladder }
+internal enum MapObjectKind { Box, Ramp, Cylinder, Stairs, Ladder, Water, Grass }
 
 internal sealed class MapObject
 {
@@ -138,6 +138,8 @@ internal sealed class MapDocument
         List<SceneRamp> ramps = new();
         List<SceneCylinder> cylinders = new();
         List<SceneLadder> ladders = new();
+        List<SceneWater> water = new();
+        List<SceneGrass> grass = new();
         foreach (MapObject o in Objects)
         {
             if (!o.Visible) continue;
@@ -151,6 +153,12 @@ internal sealed class MapDocument
                     break;
                 case MapObjectKind.Ladder:
                     ladders.Add(new SceneLadder(o.Position, o.Size, o.Rotation));
+                    break;
+                case MapObjectKind.Water:
+                    water.Add(new SceneWater(o.Position, o.Size, o.Rotation));
+                    break;
+                case MapObjectKind.Grass:
+                    grass.Add(new SceneGrass(o.Position, o.Size, o.Rotation));
                     break;
                 case MapObjectKind.Ramp:
                 {
@@ -206,7 +214,8 @@ internal sealed class MapDocument
         foreach (MapCollectible item in Collectibles)
             if (item.Visible) items.Add(new SceneCollectible(item.Name, item.Position, item.RequiredPortal));
         return new SceneDefinition(WorldSize, TileSize, Spawn, boxes.ToArray(),
-            portals.ToArray(), ramps.ToArray(), BaseSize, cylinders.ToArray(), ladders.ToArray(), items.ToArray());
+            portals.ToArray(), ramps.ToArray(), BaseSize, cylinders.ToArray(), ladders.ToArray(), items.ToArray(),
+            water.ToArray(), grass.ToArray());
     }
 }
 

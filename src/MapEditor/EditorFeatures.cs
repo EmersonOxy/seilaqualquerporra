@@ -588,6 +588,8 @@ internal static unsafe partial class Program
             if (ToolbarButton(ref bx, "Cilindro", 112)) Add(MapObjectKind.Cylinder);
             if (ToolbarButton(ref bx, "Escada", 100)) Add(MapObjectKind.Stairs);
             if (ToolbarButton(ref bx, "Esc. vertical", 128)) Add(MapObjectKind.Ladder);
+            if (ToolbarButton(ref bx, "Agua", 90)) Add(MapObjectKind.Water);
+            if (ToolbarButton(ref bx, "Grama", 90)) Add(MapObjectKind.Grass);
             if (ToolbarButton(ref bx, "Esfera", 97)) AddCollectible();
             if (ToolbarButton(ref bx, "Portal", 96)) AddPortalNode();
         }
@@ -661,7 +663,7 @@ internal static unsafe partial class Program
             if (hierarchyTab == 0)
             {
                 MapObject o = document.Objects[index];
-                title = o.Name + " (" + o.Kind + ")";
+                title = o.Name + " (" + KindLabel(o.Kind) + ")";
                 selectedRow = selectedObjects.Contains(o);
             }
             else if (hierarchyTab == 1)
@@ -785,10 +787,23 @@ internal static unsafe partial class Program
                 foreach (MapObject obj in selectedObjects) obj.Visible = !obj.Visible;
                 Changed();
             }
-            if (Button(new Rectangle(x + 184, y, 173, 28), selected.Solid ? "Colisao: SIM" : "Colisao: NAO"))
+            bool decorative = selected.Kind is MapObjectKind.Water or MapObjectKind.Grass;
+            if (decorative)
+                DrawTextSmooth("Elemento decorativo, sem colisao", x + 190, y + 7, 15, Color.LightGray);
+            else if (Button(new Rectangle(x + 184, y, 173, 28), selected.Solid ? "Colisao: SIM" : "Colisao: NAO"))
             {
                 foreach (MapObject obj in selectedObjects) obj.Solid = !obj.Solid;
                 Changed();
+            }
+            y += 39;
+            if (!decorative && Button(new Rectangle(x, y, 350, 29), "Material: " + SurfaceLabel(selected.Surface) + " (clique para trocar)"))
+            {
+                Surface[] surfaces = { Surface.Deck, Surface.Steel, Surface.Edge,
+                    Surface.Glass, Surface.Holographic };
+                int next = (Array.IndexOf(surfaces, selected.Surface) + 1) % surfaces.Length;
+                foreach (MapObject obj in selectedObjects) obj.Surface = surfaces[next];
+                Changed();
+                Toast("Material aplicado aos objetos selecionados");
             }
         }
     }

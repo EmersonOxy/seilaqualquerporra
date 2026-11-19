@@ -140,10 +140,9 @@ internal static class Program
             {
                 playerController.Respawn(sceneManager.Active.Spawn);
             }
-			if (!playerController.IsTraversing && !collectibleManager.Completed)
-			{
-				collectibleManager.Update(playerController.Feet, playerController.Elevation, playerController.Height);
-			}
+			collectibleManager.Update(playerController.Feet, playerController.Elevation,
+				playerController.Height, num,
+				!playerController.IsTraversing && !collectibleManager.Completed);
 			if (collectibleManager.Completed && !completionHandled)
 			{
 				playerController.Stop();

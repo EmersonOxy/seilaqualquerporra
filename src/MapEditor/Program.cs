@@ -12,6 +12,28 @@ namespace MapEditor;
 
 internal static unsafe partial class Program
 {
+    private static string KindLabel(MapObjectKind kind) => kind switch
+    {
+        MapObjectKind.Box => "Cubo",
+        MapObjectKind.Ramp => "Rampa",
+        MapObjectKind.Cylinder => "Cilindro",
+        MapObjectKind.Stairs => "Escada",
+        MapObjectKind.Ladder => "Escada vertical",
+        MapObjectKind.Water => "Agua",
+        MapObjectKind.Grass => "Grama",
+        _ => kind.ToString()
+    };
+
+    private static string SurfaceLabel(Surface surface) => surface switch
+    {
+        Surface.Deck => "Base",
+        Surface.Steel => "Metal",
+        Surface.Edge => "Borda",
+        Surface.Glass => "Vidro",
+        Surface.Holographic => "Holografico",
+        _ => surface.ToString()
+    };
+
     private static MapDocument document = SceneMapIO.CreateDefault();
     private static SceneDefinition preview = document.ToScene();
     private static readonly string mapPath = SceneMapIO.DefaultPath;
@@ -243,26 +265,60 @@ internal static unsafe partial class Program
 
         foreach (SceneBox b in preview.Boxes)
             DrawModelOriented(cube, b.Center, b.RotationDegrees, b.Size,
-                b.Surface == Surface.Steel ? new Color(115, 123, 137, 255) :
-                b.Surface == Surface.Edge ? new Color(180, 151, 99, 255) :
-                new Color(121, 127, 136, 255));
+                b.Surface switch
+                {
+                    Surface.Steel => new Color(115, 123, 137, 255),
+                    Surface.Edge => new Color(180, 151, 99, 255),
+                    Surface.Glass => new Color(97, 196, 220, 210),
+                    Surface.Holographic => new Color(179, 112, 225, 255),
+                    _ => new Color(121, 127, 136, 255)
+                });
 
         foreach (SceneRamp r in preview.Ramps)
         {
             Quaternion q = Quaternion.CreateFromAxisAngle(r.RotationAxis, r.AngleDegrees * MathF.PI / 180f);
             SceneTransform.ToAxisAngle(q, out Vector3 ax, out float angle);
-            Raylib.DrawModelEx(cube, r.Center, ax, angle, r.BoxSize, new Color(190, 160, 107, 255));
+            Color rampColor = r.Surface == Surface.Glass ? new Color(97, 196, 220, 210) :
+                r.Surface == Surface.Holographic ? new Color(179, 112, 225, 255) :
+                new Color(190, 160, 107, 255);
+            Raylib.DrawModelEx(cube, r.Center, ax, angle, r.BoxSize, rampColor);
         }
 
         foreach (SceneCylinder c in preview.Cylinders)
         {
             Quaternion q = SceneTransform.Orientation(c.RotationDegrees);
             Vector3 bottom = c.Center - Vector3.Transform(Vector3.UnitY * (c.Size.Y * .5f), q);
-            DrawModelOriented(cylinder, bottom, c.RotationDegrees, c.Size,
-                new Color(115, 162, 169, 255));
+            Color cylinderColor = c.Surface == Surface.Glass ? new Color(97, 196, 220, 210) :
+                c.Surface == Surface.Holographic ? new Color(179, 112, 225, 255) :
+                new Color(115, 162, 169, 255);
+            DrawModelOriented(cylinder, bottom, c.RotationDegrees, c.Size, cylinderColor);
         }
 
         foreach (SceneLadder l in preview.Ladders) DrawLadder(l);
+
+        foreach (SceneWater water in preview.Water)
+            Raylib.DrawCubeV(water.Center, new Vector3(water.Size.X, .06f, water.Size.Z),
+                new Color(44, 166, 220, 190));
+
+        foreach (SceneGrass grass in preview.Grass)
+        {
+            Raylib.DrawCubeV(grass.Center, new Vector3(grass.Size.X, .04f, grass.Size.Z),
+                new Color(45, 105, 53, 255));
+            int count = Math.Clamp((int)(grass.Size.X * grass.Size.Z * 1.2f), 8, 100);
+            uint seed = unchecked((uint)(count * 747796405 + (int)(grass.Center.X * 1777f) + (int)(grass.Center.Z * 2153f)));
+            Quaternion rotation = SceneTransform.Orientation(grass.RotationDegrees);
+            for (int i = 0; i < count; i++)
+            {
+                seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5;
+                float rx = (seed & 0x00FFFFFF) / 16777216f - .5f;
+                seed ^= seed << 13; seed ^= seed >> 17; seed ^= seed << 5;
+                float rz = (seed & 0x00FFFFFF) / 16777216f - .5f;
+                Vector3 start = grass.Center + Vector3.Transform(
+                    new Vector3(rx * grass.Size.X, .04f, rz * grass.Size.Z), rotation);
+                Raylib.DrawCylinderEx(start, start + Vector3.UnitY * (.28f + rx * .2f),
+                    .025f, .001f, 4, new Color(50, 155, 65, 255));
+            }
+        }
 
         foreach (ScenePortalPair p in preview.PortalPairs)
         {
@@ -324,7 +380,7 @@ internal static unsafe partial class Program
             Rectangle rect = new(right + 10, listTop + i * 26, PanelWidth - 20, 24);
             if (selected == o)
                 Raylib.DrawRectangleRec(rect, new Color(65, 100, 145, 255));
-            if (Button(rect, o.Name + " [" + o.Kind + "]", true)) selected = o;
+            if (Button(rect, o.Name + " [" + KindLabel(o.Kind) + "]", true)) selected = o;
         }
         Vector2 m = Raylib.GetMousePosition();
         if (m.X >= right && m.Y >= listTop && m.Y < listTop + visible * 26)
@@ -483,11 +539,17 @@ internal static unsafe partial class Program
     private static void Add(MapObjectKind kind)
     {
         Vector3 where = eye + Forward() * 6f;
-        where.Y = kind == MapObjectKind.Stairs ? 1.4f : kind == MapObjectKind.Ladder ? 2f :
-            MathF.Max(.8f, where.Y);
+        where.Y = kind switch
+        {
+            MapObjectKind.Stairs => 1.4f,
+            MapObjectKind.Ladder => 2f,
+            MapObjectKind.Water => MathF.Max(.15f, where.Y),
+            MapObjectKind.Grass => .03f,
+            _ => MathF.Max(.8f, where.Y)
+        };
         MapObject o = new()
         {
-            Name = kind + " " + (document.Objects.Count + 1),
+            Name = KindLabel(kind) + " " + (document.Objects.Count + 1),
             Kind = kind, Position = where,
             Size = kind switch
             {
@@ -495,8 +557,11 @@ internal static unsafe partial class Program
                 MapObjectKind.Stairs => new Vector3(3f, 2.4f, 7f),
                 MapObjectKind.Ladder => new Vector3(1.4f, 4f, .25f),
                 MapObjectKind.Cylinder => new Vector3(2f, 3f, 2f),
+                MapObjectKind.Water => new Vector3(8f, .08f, 8f),
+                MapObjectKind.Grass => new Vector3(8f, .15f, 8f),
                 _ => new Vector3(2f, 1f, 2f)
-            }
+            },
+            Solid = kind is not MapObjectKind.Water and not MapObjectKind.Grass
         };
         document.Objects.Add(o);
         SelectObject(o, false);

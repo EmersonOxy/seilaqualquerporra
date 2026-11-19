@@ -4,5 +4,7 @@ internal enum Surface
 {
 	Deck,
 	Steel,
-	Edge
+	Edge,
+	Glass,
+	Holographic
 }
