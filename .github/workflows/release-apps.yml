@@ -1,0 +1,94 @@
+name: Publicar jogo, editor e setup geral
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Instalar Velopack CLI
+        run: dotnet tool install vpk --version 1.2.161 --tool-path ./.tools
+
+      - name: Publicar jogo
+        run: dotnet publish src/ControladorFPS/ControladorFPS.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/game --nologo
+
+      - name: Publicar editor
+        run: dotnet publish src/MapEditor/MapEditor.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/editor --nologo
+
+      - name: Criar pacote de atualização do jogo
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          ./.tools/vpk.exe pack --packId ControladorFPS --packVersion $version --packTitle "Controlador FPS" --packDir dist/game --mainExe ControladorFPS.exe --channel win --runtime win-x64 --outputDir dist/game-release
+
+      - name: Criar pacote de atualização do editor
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          ./.tools/vpk.exe pack --packId MapEditor --packVersion $version --packTitle "Editor de Mapas - Controlador FPS" --packDir dist/editor --mainExe MapEditor.exe --channel editor --runtime win-x64 --outputDir dist/editor-release
+
+      - name: Publicar canal independente do jogo
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./.tools/vpk.exe upload github --repoUrl https://github.com/${{ github.repository }} --token $env:GH_TOKEN --outputDir dist/game-release --channel win --publish --tag $env:GITHUB_REF_NAME --releaseName "Controlador FPS $env:GITHUB_REF_NAME"
+
+      - name: Publicar canal independente do editor
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./.tools/vpk.exe upload github --repoUrl https://github.com/${{ github.repository }} --token $env:GH_TOKEN --outputDir dist/editor-release --channel editor --publish --merge --tag $env:GITHUB_REF_NAME --releaseName "Controlador FPS $env:GITHUB_REF_NAME"
+
+      - name: Compilar setups de gerenciamento
+        shell: pwsh
+        run: |
+          $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+          $framework = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
+          New-Item -ItemType Directory -Force -Path dist/installers/Jogo, dist/installers/Editor | Out-Null
+          $source = 'src\SetupManager\Program.cs'
+          $references = @("/reference:$framework\System.dll", "/reference:$framework\System.Drawing.dll", "/reference:$framework\System.Windows.Forms.dll")
+          & $compiler /nologo /target:winexe /out:dist\installers\Jogo\Setup.exe $references $source
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $compiler /nologo /target:winexe /define:EDITOR_SETUP /out:dist\installers\Editor\Setup.exe $references $source
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Montar pacote geral com jogo e editor
+        shell: pwsh
+        run: |
+          $root = 'dist/installers/ControladorFPS'
+          $gameDir = Join-Path $root 'Jogo'
+          $editorDir = Join-Path $root 'Editor'
+          New-Item -ItemType Directory -Force -Path $gameDir, $editorDir | Out-Null
+          Copy-Item dist/installers/Jogo/Setup.exe "$gameDir/Setup.exe"
+          Copy-Item dist/installers/Editor/Setup.exe "$editorDir/Setup.exe"
+          Copy-Item src/SetupManager/LEIA-ME.txt "$root/LEIA-ME.txt"
+          Compress-Archive -Path $root -DestinationPath dist/ControladorFPS-PacoteGeral.zip -CompressionLevel Optimal
+
+      - name: Publicar pacote geral
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload $env:GITHUB_REF_NAME dist/ControladorFPS-PacoteGeral.zip --repo $env:GITHUB_REPOSITORY --clobber
+
+      - name: Marcar esta versao como atual
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --latest

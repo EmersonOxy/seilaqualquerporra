@@ -1,0 +1,9 @@
+CONTROLADOR FPS - PACOTE GERAL
+
+Extraia esta pasta. Execute Jogo\Setup.exe para instalar o jogo e Editor\Setup.exe para instalar o editor.
+
+Na primeira execucao, o Setup baixa a versao atual do GitHub e instala o aplicativo na subpasta Aplicativo, separada do Setup.
+
+Ao iniciar o mesmo Setup outra vez, Sim atualiza pela ultima versao do GitHub, Nao restaura usando o ultimo instalador salvo e Cancelar sai.
+
+O mapa fica em Documentos e e preservado durante atualizacoes e restauracoes.

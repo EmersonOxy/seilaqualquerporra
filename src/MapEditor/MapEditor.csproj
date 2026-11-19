@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>14.0</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Raylib-cs" Version="7.0.2" />
+    <PackageReference Include="Velopack" Version="1.2.161" />
+    <Compile Include="../ControladorFPS/Fps.Desktop.Scenes/*.cs" Link="Scenes/%(Filename)%(Extension)" />
+    <Compile Include="../ControladorFPS/Fps.Desktop.Physics/CollisionWorld.cs" Link="Physics/CollisionWorld.cs" />
+    <Compile Include="../ControladorFPS/Fps.Desktop.Updates/GameUpdates.cs" Link="Updates/GameUpdates.cs" />
+  </ItemGroup>
+</Project>
