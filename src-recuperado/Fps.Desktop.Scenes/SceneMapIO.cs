@@ -162,6 +162,37 @@ internal static class SceneMapIO
                 Surface = r.Surface
             });
         }
+        // Built-in parkour accessories: every step is a real solid block.
+        data.Objects.Add(new MapObject
+        {
+            Name = "Escada leste", Kind = MapObjectKind.Stairs,
+            Position = new Vector3(34.4f, 1.4f, -8.9f),
+            Size = new Vector3(2.3f, 2.8f, 6.2f),
+            Rotation = new Vector3(0f, 90f, 0f),
+            Surface = Surface.Edge
+        });
+        data.Objects.Add(new MapObject
+        {
+            Name = "Escada sul", Kind = MapObjectKind.Stairs,
+            Position = new Vector3(12.7f, 4.5f, 45.9f),
+            Size = new Vector3(2.7f, 3f, 6.5f),
+            Rotation = new Vector3(0f, 90f, 0f),
+            Surface = Surface.Edge
+        });
+        data.Objects.Add(new MapObject
+        {
+            Name = "Escada vertical leste", Kind = MapObjectKind.Ladder,
+            Position = new Vector3(41.6f, 1.55f, -.15f),
+            Size = new Vector3(1.4f, 3.1f, .3f),
+            Surface = Surface.Steel, Solid = false
+        });
+        data.Objects.Add(new MapObject
+        {
+            Name = "Escada vertical oeste", Kind = MapObjectKind.Ladder,
+            Position = new Vector3(-42.5f, 2.9f, -10.75f),
+            Size = new Vector3(1.4f, 5.8f, .3f),
+            Surface = Surface.Steel, Solid = false
+        });
         foreach (ScenePortalPair pair in scene.PortalPairs)
         {
             data.Portals.Add(new MapPortal
