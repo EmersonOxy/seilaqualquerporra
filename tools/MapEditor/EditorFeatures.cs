@@ -464,3 +464,363 @@ internal static unsafe partial class Program
         Toast(copied.Count + " objeto(s) duplicado(s)");
     }
 }
+
+
+internal static unsafe partial class Program
+{
+    private static Action<float>? nodeNumberSetter;
+
+    private static void DrawModernInterface()
+    {
+        int w = Raylib.GetScreenWidth();
+        int h = Raylib.GetScreenHeight();
+        float right = ViewRight;
+        Color dark = new(24, 27, 33, 255);
+        Color panel = new(36, 40, 48, 255);
+
+        Raylib.DrawRectangle(0, 0, w, 82, dark);
+        string[] top = { "Criar", "Ferramentas", "Portais", "Arquivo" };
+        for (int i = 0; i < top.Length; i++)
+        {
+            Rectangle r = new(12 + i * 130, 9, 125, 29);
+            bool active = mainTab == i;
+            Raylib.DrawRectangleRec(r, active ? new Color(64, 97, 135, 255) :
+                new Color(44, 49, 60, 255));
+            if (Button(r, top[i])) mainTab = i;
+        }
+
+        float bx = 15f;
+        if (mainTab == 0)
+        {
+            if (ToolbarButton(ref bx, "Cubo", 94)) Add(MapObjectKind.Box);
+            if (ToolbarButton(ref bx, "Rampa", 94)) Add(MapObjectKind.Ramp);
+            if (ToolbarButton(ref bx, "Cilindro", 112)) Add(MapObjectKind.Cylinder);
+            if (ToolbarButton(ref bx, "Escada", 100)) Add(MapObjectKind.Stairs);
+            if (ToolbarButton(ref bx, "Esc. vertical", 128)) Add(MapObjectKind.Ladder);
+            if (ToolbarButton(ref bx, "Esfera", 97)) AddCollectible();
+            if (ToolbarButton(ref bx, "Portal", 96)) AddPortalNode();
+        }
+        else if (mainTab == 1)
+        {
+            if (ToolbarButton(ref bx, mode == 0 ? "[Mover] (1)" : "Mover (1)", 132)) ChangeMode(0);
+            if (ToolbarButton(ref bx, mode == 1 ? "[Girar] (2)" : "Girar (2)", 132)) ChangeMode(1);
+            if (ToolbarButton(ref bx, mode == 2 ? "[Tamanho] (3)" : "Tamanho (3)", 148)) ChangeMode(2);
+            if (ToolbarButton(ref bx, uniform ? "Escala uniforme: SIM" : "Escala uniforme: NAO", 205))
+                uniform = !uniform;
+            if (ToolbarButton(ref bx, "Duplicar Ctrl+D", 160)) DuplicateSelectedEntities();
+            if (ToolbarButton(ref bx, "Excluir Del", 135)) DeleteSelectedEntities();
+        }
+        else if (mainTab == 2)
+        {
+            if (ToolbarButton(ref bx, "Novo portal", 133)) AddPortalNode();
+            if (ToolbarButton(ref bx, linking ? "[Selecionar destino]" : "Vincular origem -> destino", 240))
+                BeginLink();
+            if (ToolbarButton(ref bx, "Inverter sentido", 171)) ReverseSelectedLink();
+            if (ToolbarButton(ref bx, "Cancelar vinculo", 171))
+            {
+                linking = false; linkSource = null;
+                Toast("Modo de conexao cancelado");
+            }
+        }
+        else
+        {
+            if (ToolbarButton(ref bx, "Salvar Ctrl+S", 167)) Save();
+            if (ToolbarButton(ref bx, "Reabrir mapa", 155)) Reload();
+            DrawTextSmooth("O jogo carrega map.json apos salvar.", (int)bx + 18, 52, 17, Color.LightGray);
+        }
+        DrawTextSmooth(linking ? "LIGACAO: selecione origem e destino na cena"
+                    : $"MODO: {(mode == 0 ? "MOVER" : mode == 1 ? "GIRAR" : "TAMANHO")}",
+            15, 88, 18, linking ? Color.Yellow : Color.White);
+        DrawMarquee();
+
+        Raylib.DrawRectangle((int)right, 82, (int)PanelWidth, h - 114, panel);
+        string[] categories = { "Objetos", "Portais", "Esferas" };
+        for (int i = 0; i < 3; i++)
+        {
+            Rectangle r = new(right + 10 + i * 132, 94, 125, 28);
+            if (Button(r, hierarchyTab == i ? "[" + categories[i] + "]" : categories[i]))
+            {
+                hierarchyTab = i;
+                objectScroll = 0;
+            }
+        }
+
+        int total = hierarchyTab switch
+        {
+            0 => document.Objects.Count,
+            1 => document.PortalNodes.Count,
+            _ => document.Collectibles.Count
+        };
+        DrawTextSmooth(total + " elemento(s)" +
+            (selectedObjects.Count > 1 ? " | " + selectedObjects.Count + " selecionados" : ""),
+            (int)right + 15, 130, 16, Color.LightGray);
+
+        int listTop = 155;
+        int maxItems = 8;
+        objectScroll = Math.Clamp(objectScroll, 0, Math.Max(0, total - maxItems));
+        for (int i = 0; i < maxItems && i + objectScroll < total; i++)
+        {
+            int index = i + objectScroll;
+            string title;
+            bool selectedRow;
+            if (hierarchyTab == 0)
+            {
+                MapObject o = document.Objects[index];
+                title = o.Name + " (" + o.Kind + ")";
+                selectedRow = selectedObjects.Contains(o);
+            }
+            else if (hierarchyTab == 1)
+            {
+                MapPortalNode p = document.PortalNodes[index];
+                MapPortalNode? destination = p.DestinationId is Guid destId
+                    ? document.PortalNodes.Find(n => n.Id == destId) : null;
+                title = p.Name + (destination == null ? " (sem ligacao)" : " > " + destination.Name);
+                selectedRow = p == activePortal;
+            }
+            else
+            {
+                MapCollectible item = document.Collectibles[index];
+                title = item.Name;
+                selectedRow = item == activeItem;
+            }
+            Rectangle rect = new(right + 11, listTop + i * 27, PanelWidth - 22, 25);
+            if (selectedRow)
+                Raylib.DrawRectangleRec(rect, new Color(56, 104, 159, 255));
+            if (Button(rect, title, true))
+            {
+                bool ctrl = Key(341) || Key(345);
+                if (hierarchyTab == 0) SelectObject(document.Objects[index], ctrl);
+                else if (hierarchyTab == 1) SelectPortal(document.PortalNodes[index]);
+                else SelectItem(document.Collectibles[index]);
+            }
+        }
+        Vector2 mouse = Raylib.GetMousePosition();
+        if (mouse.X >= right && mouse.Y >= listTop && mouse.Y < listTop + 8 * 27)
+            objectScroll -= (int)Raylib.GetMouseWheelMove() * 2;
+
+        int tabY = listTop + maxItems * 27 + 10;
+        Raylib.DrawLine((int)right + 10, tabY - 4, w - 10, tabY - 4, Color.Gray);
+        string[] tabs = activePortal != null ?
+            new[] { "Posicao", "Ligacao", "Orientacao" } :
+            activeItem != null ? new[] { "Posicao", "Pontuacao", "Acoes" } :
+            new[] { "Transformar", "Faces", "Objeto" };
+        for (int i = 0; i < 3; i++)
+        {
+            if (Button(new Rectangle(right + 10 + i * 132, tabY + 4, 125, 28),
+                inspectorTab == i ? "[" + tabs[i] + "]" : tabs[i]))
+                inspectorTab = i;
+        }
+        int y = tabY + 45;
+        if (activePortal != null) DrawPortalInspector(activePortal, (int)right + 15, ref y);
+        else if (activeItem != null) DrawItemInspector(activeItem, (int)right + 15, ref y);
+        else if (selected != null) DrawObjectInspector((int)right + 15, ref y);
+        else DrawTextSmooth("Clique na cena para selecionar.", (int)right + 15, y, 18, Color.LightGray);
+
+        Raylib.DrawRectangle(0, h - 32, w, 32, new Color(22, 25, 30, 255));
+        DrawTextSmooth("Ctrl: selecionar varios | Arrastar no vazio: area | 1/2/3: ferramenta | Ctrl+S: salvar",
+            16, h - 24, 16, Color.White);
+        if (modified)
+            DrawTextSmooth("* Alteracoes nao salvas", w - 260, h - 24, 16, Color.Yellow);
+        DrawToast();
+    }
+
+    private static bool ToolbarButton(ref float x, string text, float width)
+    {
+        bool hit = Button(new Rectangle(x, 45, width, 30), text);
+        x += width + 7;
+        return hit;
+    }
+
+    private static void DrawObjectInspector(int x, ref int y)
+    {
+        if (selected == null) return;
+        DrawTextSmooth(selectedObjects.Count > 1 ? selectedObjects.Count + " objetos selecionados" :
+            selected.Name, x + 4, y, 19, Color.White);
+        y += 30;
+        if (inspectorTab == 0)
+        {
+            if (Button(new Rectangle(x, y, 118, 26), mode == 0 ? "[Mover]" : "Mover"))
+                ChangeMode(0);
+            if (Button(new Rectangle(x + 124, y, 118, 26), mode == 1 ? "[Girar]" : "Girar"))
+                ChangeMode(1);
+            if (Button(new Rectangle(x + 248, y, 118, 26), mode == 2 ? "[Tamanho]" : "Tamanho"))
+                ChangeMode(2);
+            y += 36;
+            NumericRow(selected, x, ref y, "PX", 0, 0);
+            NumericRow(selected, x, ref y, "PY", 0, 1);
+            NumericRow(selected, x, ref y, "PZ", 0, 2);
+            y += 8;
+            NumericRow(selected, x, ref y, "RX", 1, 0);
+            NumericRow(selected, x, ref y, "RY", 1, 1);
+            NumericRow(selected, x, ref y, "RZ", 1, 2);
+            y += 8;
+            NumericRow(selected, x, ref y, "SX", 2, 0);
+            NumericRow(selected, x, ref y, "SY", 2, 1);
+            NumericRow(selected, x, ref y, "SZ", 2, 2);
+        }
+        else if (inspectorTab == 1)
+        {
+            DrawTextSmooth("Redimensionar faces individuais", x + 3, y, 18, Color.LightGray);
+            y += 34;
+            for (int axis = 0; axis < 3; axis++)
+            {
+                string axisName = axis == 0 ? "X" : axis == 1 ? "Y" : "Z";
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    if (Button(new Rectangle(x + 3, y, 158, 29), axisName + (side < 0 ? " negativo  -" : " positivo  -")))
+                        foreach (MapObject obj in selectedObjects) ChangeFace(obj, axis, side, -.20f);
+                    if (Button(new Rectangle(x + 170, y, 158, 29), axisName + (side < 0 ? " negativo  +" : " positivo  +")))
+                        foreach (MapObject obj in selectedObjects) ChangeFace(obj, axis, side, .20f);
+                    y += 38;
+                }
+            }
+            if (Button(new Rectangle(x + 3, y, 187, 27), uniform ? "[Escala uniforme]" : "Escala uniforme"))
+                uniform = !uniform;
+        }
+        else
+        {
+            if (Button(new Rectangle(x, y, 175, 31), "Duplicar selecionados")) DuplicateSelectedEntities();
+            if (Button(new Rectangle(x + 183, y, 175, 31), "Excluir selecionados")) DeleteSelectedEntities();
+            y += 42;
+            if (Button(new Rectangle(x, y, 173, 28), selected.Visible ? "Visivel: SIM" : "Visivel: NAO"))
+            {
+                foreach (MapObject obj in selectedObjects) obj.Visible = !obj.Visible;
+                Changed();
+            }
+            if (Button(new Rectangle(x + 184, y, 173, 28), selected.Solid ? "Colisao: SIM" : "Colisao: NAO"))
+            {
+                foreach (MapObject obj in selectedObjects) obj.Solid = !obj.Solid;
+                Changed();
+            }
+        }
+    }
+
+    private static void NodeRow(int x, ref int y, string title, string editKey,
+        float value, Action<float> assign, float step = .25f)
+    {
+        DrawTextSmooth(title, x + 5, y + 4, 17, Color.LightGray);
+        if (Button(new Rectangle(x + 84, y, 32, 26), "-")) assign(value - step);
+        Rectangle field = new(x + 124, y, 164, 26);
+        bool active = editing == "node:" + editKey;
+        Raylib.DrawRectangleRec(field, active ? new Color(67, 97, 122, 255)
+            : new Color(48, 52, 62, 255));
+        DrawTextSmooth(active ? editBuffer : value.ToString("0.###"),
+            (int)field.X + 9, y + 5, 17, Color.White);
+        if (MousePress(0) && Raylib.CheckCollisionPointRec(Raylib.GetMousePosition(), field))
+        {
+            editing = "node:" + editKey;
+            editBuffer = value.ToString("0.###");
+            nodeNumberSetter = assign;
+        }
+        if (Button(new Rectangle(x + 298, y, 32, 26), "+")) assign(value + step);
+        y += 32;
+    }
+
+    private static void HandleNodeTextEdit()
+    {
+        if (editing == null || !editing.StartsWith("node:")) return;
+        int cp;
+        while ((cp = Raylib.GetCharPressed()) > 0)
+        {
+            if (((cp >= '0' && cp <= '9') || cp == '-' || cp == '.' || cp == ',') &&
+                editBuffer.Length < 17) editBuffer += (char)cp;
+        }
+        if (Press(259) && editBuffer.Length > 0) editBuffer = editBuffer[..^1];
+        if (Press(256)) { editing = null; nodeNumberSetter = null; return; }
+        if (!(Press(257) || Press(335))) return;
+        if (float.TryParse(editBuffer.Replace(',', '.'),
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out float value) &&
+            float.IsFinite(value))
+            nodeNumberSetter?.Invoke(value);
+        editing = null;
+        nodeNumberSetter = null;
+    }
+
+    private static void DrawPortalInspector(MapPortalNode portal, int x, ref int y)
+    {
+        DrawTextSmooth(portal.Name, x, y, 20, Color.White);
+        y += 32;
+        if (inspectorTab == 0)
+        {
+            NodeRow(x, ref y, "X", "PX", portal.Center.X, v => { portal.Center = new Vector3(v, portal.Center.Y, portal.Center.Z); Changed(); });
+            NodeRow(x, ref y, "Y", "PY", portal.Center.Y, v => { portal.Center = new Vector3(portal.Center.X, v, portal.Center.Z); Changed(); });
+            NodeRow(x, ref y, "Z", "PZ", portal.Center.Z, v => { portal.Center = new Vector3(portal.Center.X, portal.Center.Y, v); Changed(); });
+            y += 12;
+            NodeRow(x, ref y, "Raio", "PR", portal.Radius, v => { if (v >= .5f) { portal.Radius = v; Changed(); } }, .2f);
+        }
+        else if (inspectorTab == 1)
+        {
+            MapPortalNode? destination = portal.DestinationId is Guid targetId ?
+                document.PortalNodes.Find(x => x.Id == targetId) : null;
+            DrawTextSmooth(destination == null ? "Destino: sem ligacao" :
+                "Destino: " + destination.Name, x, y, 17, Color.LightGray);
+            y += 40;
+            if (Button(new Rectangle(x, y, 350, 30), "Selecionar destino na cena")) BeginLink();
+            y += 40;
+            if (Button(new Rectangle(x, y, 350, 30), "Inverter origem e destino")) ReverseSelectedLink();
+            y += 40;
+            if (Button(new Rectangle(x, y, 350, 30), "Remover ligacao"))
+            {
+                portal.DestinationId = null; Changed(); Toast("Ligacao removida");
+            }
+            y += 40;
+            if (Button(new Rectangle(x, y, 350, 30), portal.OneWay ? "Sentido: apenas origem > destino" :
+                "Sentido: bidirecional"))
+            {
+                portal.OneWay = !portal.OneWay;
+                Changed(); Toast(portal.OneWay ? "Portal unidirecional" : "Portal bidirecional");
+            }
+        }
+        else
+        {
+            DrawTextSmooth("Orientacao da abertura", x, y, 18, Color.LightGray);
+            y += 32;
+            Vector3[] vectors = { Vector3.UnitX, -Vector3.UnitX, Vector3.UnitY,
+                -Vector3.UnitY, Vector3.UnitZ, -Vector3.UnitZ };
+            string[] labels = { "+X", "-X", "+Y (chao)", "-Y", "+Z", "-Z" };
+            for (int i = 0; i < 6; i++)
+            {
+                int j = i;
+                int col = i % 2, line = i / 2;
+                if (Button(new Rectangle(x + col * 180, y + line * 38, 171, 32), labels[i]))
+                {
+                    portal.Normal = vectors[j];
+                    Changed();
+                    Toast("Orientacao do portal atualizada");
+                }
+            }
+        }
+    }
+
+    private static void DrawItemInspector(MapCollectible item, int x, ref int y)
+    {
+        DrawTextSmooth(item.Name, x, y, 20, Color.White); y += 32;
+        if (inspectorTab == 0)
+        {
+            NodeRow(x, ref y, "X", "IX", item.Position.X,
+                v => { item.Position = new Vector3(v, item.Position.Y, item.Position.Z); Changed(); });
+            NodeRow(x, ref y, "Y", "IY", item.Position.Y,
+                v => { item.Position = new Vector3(item.Position.X, v, item.Position.Z); Changed(); });
+            NodeRow(x, ref y, "Z", "IZ", item.Position.Z,
+                v => { item.Position = new Vector3(item.Position.X, item.Position.Y, v); Changed(); });
+        }
+        else if (inspectorTab == 1)
+        {
+            DrawTextSmooth("Liberar coletavel depois do portal:", x, y, 17, Color.LightGray);
+            y += 37;
+            NodeRow(x, ref y, "Par", "IP", item.RequiredPortal,
+                v => { item.RequiredPortal = Math.Clamp((int)v, -1, document.PortalNodes.Count); Changed(); }, 1f);
+            DrawTextSmooth("-1 = disponivel desde o inicio", x, y + 4, 16, Color.LightGray);
+        }
+        else
+        {
+            if (Button(new Rectangle(x, y, 350, 33), "Duplicar esfera")) DuplicateSelectedEntities();
+            y += 41;
+            if (Button(new Rectangle(x, y, 350, 33), item.Visible ? "Visivel: SIM" : "Visivel: NAO"))
+            { item.Visible = !item.Visible; Changed(); }
+            y += 41;
+            if (Button(new Rectangle(x, y, 350, 33), "Excluir esfera")) DeleteSelectedEntities();
+        }
+    }
+}
