@@ -53,3 +53,31 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           ./.tools/vpk.exe upload github --repoUrl https://github.com/${{ github.repository }} --token $env:GH_TOKEN --outputDir dist/editor-release --channel editor --publish --merge --tag $env:GITHUB_REF_NAME --releaseName "Controlador FPS $env:GITHUB_REF_NAME"
+
+      - name: Criar pastas de instalação lado a lado
+        shell: pwsh
+        run: |
+          $gameDir = 'dist/installers/Jogo'
+          $editorDir = 'dist/installers/Editor'
+          New-Item -ItemType Directory -Force -Path $gameDir, $editorDir | Out-Null
+          Copy-Item 'dist/game-release/ControladorFPS-win-Setup.exe' "$gameDir/ControladorFPS-win-Setup.exe"
+          Copy-Item 'dist/editor-release/MapEditor-editor-Setup.exe' "$editorDir/MapEditor-editor-Setup.exe"
+          @'
+          @echo off
+          set "APP_HOME=%~dp0"
+          "%~dp0ControladorFPS-win-Setup.exe" --installto "%APP_HOME%"
+          '@ | Set-Content "$gameDir/Instalar-Jogo.cmd" -Encoding ascii
+          @'
+          @echo off
+          set "APP_HOME=%~dp0"
+          "%~dp0MapEditor-editor-Setup.exe" --installto "%APP_HOME%"
+          '@ | Set-Content "$editorDir/Instalar-Editor.cmd" -Encoding ascii
+          Compress-Archive -Path $gameDir -DestinationPath dist/ControladorFPS-Jogo.zip -CompressionLevel Optimal
+          Compress-Archive -Path $editorDir -DestinationPath dist/MapEditor-Editor.zip -CompressionLevel Optimal
+
+      - name: Publicar pacotes de instalação nas pastas escolhidas
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload $env:GITHUB_REF_NAME dist/ControladorFPS-Jogo.zip dist/MapEditor-Editor.zip --repo $env:GITHUB_REPOSITORY --clobber

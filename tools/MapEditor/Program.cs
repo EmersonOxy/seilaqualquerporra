@@ -20,6 +20,7 @@ internal static unsafe partial class Program
     private static Model cylinder;
     private static Camera3D camera;
     private static Vector3 eye = new(12f, 11f, 21f);
+    private static float cameraMoveSpeed = 8f;
     private static float yaw = -.4f, pitch = -.35f;
     private static bool looking, modified, snap = true, uniform;
     private static int mode; // 0 move, 1 rotate, 2 size
@@ -87,8 +88,8 @@ internal static unsafe partial class Program
         bool shift = Key(340) || Key(344);
 
         if (ctrl && Press(83)) Save();
-        if (ctrl && Press(68) && (selected != null || activeItem != null)) DuplicateSelectedEntities();
-        if (editing == null && (selected != null || activeItem != null || activePortal != null) && Press(261)) DeleteSelectedEntities();
+        if (ctrl && Press(68) && SelectedCount > 0) DuplicateSelectedEntities();
+        if (editing == null && SelectedCount > 0 && Press(261)) DeleteSelectedEntities();
         if (editing == null && Press(49)) ChangeMode(0);
         if (editing == null && Press(50)) ChangeMode(1);
         if (editing == null && Press(51)) ChangeMode(2);
@@ -108,6 +109,12 @@ internal static unsafe partial class Program
         }
         if (looking)
         {
+            float wheel = Raylib.GetMouseWheelMove();
+            if (MathF.Abs(wheel) > .001f)
+            {
+                cameraMoveSpeed = Math.Clamp(cameraMoveSpeed * MathF.Pow(1.2f, wheel), .5f, 100f);
+                Toast($"Velocidade da camera: {cameraMoveSpeed:0.0}");
+            }
             Vector2 d = Raylib.GetMouseDelta();
             yaw += d.X * .0023f;
             pitch = Math.Clamp(pitch - d.Y * .0023f, -1.48f, 1.48f);
@@ -123,7 +130,7 @@ internal static unsafe partial class Program
             if (Key(69)) move += Vector3.UnitY;
             if (Key(81)) move -= Vector3.UnitY;
             if (move.LengthSquared() > 0f)
-                eye += Vector3.Normalize(move) * dt * (shift ? 18f : 8f);
+                eye += Vector3.Normalize(move) * dt * cameraMoveSpeed * (shift ? 2.25f : 1f);
         }
         camera = new Camera3D(eye, eye + Forward(), Vector3.UnitY, 65f, (CameraProjection)0);
 

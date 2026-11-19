@@ -218,12 +218,17 @@ internal static class SceneMapIO
         get
         {
             string sharedDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "ControladorFPS", "Dados");
             string sharedPath = Path.Combine(sharedDirectory, FileName);
             if (!File.Exists(sharedPath))
             {
-                string legacyPath = Path.Combine(AppContext.BaseDirectory, FileName);
+                string oldSharedPath = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "ControladorFPS", "Dados", FileName);
+                string legacyPath = File.Exists(oldSharedPath)
+                    ? oldSharedPath
+                    : Path.Combine(AppContext.BaseDirectory, FileName);
                 if (File.Exists(legacyPath))
                 {
                     Directory.CreateDirectory(sharedDirectory);

@@ -8,7 +8,13 @@ namespace Fps.Desktop.Player;
 
 internal sealed class PlayerController(Vector2 spawn)
 {
+	private const float StandingHeight = 1.60f;
+	private const float CrouchedHeight = 1.10f;
+	private const float HighFallVoiceHeight = 3.5f;
+
 	private bool crouchToggle;
+
+	private bool highFallVoicePlayed;
 
 	private Vector2 velocity;
 
@@ -26,9 +32,9 @@ internal sealed class PlayerController(Vector2 spawn)
 
 	public bool Grounded { get; private set; } = true;
 
-	public float Height { get; private set; } = 1.7f;
+	public float Height { get; private set; } = StandingHeight;
 
-	public float EyeHeight => float.Lerp(1f, 1.6f, (Height - 1.1f) / 0.6f);
+	public float EyeHeight => float.Lerp(1f, 1.5f, (Height - CrouchedHeight) / (StandingHeight - CrouchedHeight));
 
 	public PortalTravelView? PortalView => traversal?.View;
 
@@ -42,15 +48,18 @@ internal sealed class PlayerController(Vector2 spawn)
 
 	public event Action<ScenePortal, ScenePortal>? PortalTraversed;
 
+	public event Action? FellFromHighPlace;
+
     public void Respawn(Vector2 spawn)
     {
         Feet = spawn;
         Elevation = 0f;
         Grounded = true;
-        Height = 1.7f;
+        Height = StandingHeight;
         crouchToggle = false;
         velocity = Vector2.Zero;
         verticalVelocity = 0f;
+        highFallVoicePlayed = false;
         exiting = null;
         traversal = null;
         Stop();
@@ -141,16 +150,16 @@ internal sealed class PlayerController(Vector2 spawn)
         }
 		bool flag = num > 0f && input.Sprint && !input.Slow && !Stamina.Exhausted;
 		bool flag2 = crouchToggle || input.CrouchHeld;
-		bool flag3 = Height == 1.7f || ((flag || !flag2) && world.Fits(Feet, 1.7f, 0.32f, Elevation));
+		bool flag3 = Height == StandingHeight || ((flag || !flag2) && world.Fits(Feet, StandingHeight, 0.32f, Elevation));
 		bool flag4 = flag & flag3;
 		if (flag4)
 		{
 			crouchToggle = false;
 		}
-		float target = ((flag3 && (flag4 || !flag2)) ? 1.7f : 1.1f);
+		float target = ((flag3 && (flag4 || !flag2)) ? StandingHeight : CrouchedHeight);
 		Height = MathEx.Approach(Height, target, 3.5f * dt);
-		float amount = (Height - 1.1f) / 0.6f;
-		bool flag5 = flag4 && Height == 1.7f;
+		float amount = (Height - CrouchedHeight) / (StandingHeight - CrouchedHeight);
+		bool flag5 = flag4 && Height == StandingHeight;
 		float num2 = (flag5 ? 6.3f : float.Lerp(2.1f, 3.4f, amount));
 		if (input.Slow)
 		{
@@ -223,6 +232,17 @@ internal sealed class PlayerController(Vector2 spawn)
 		if (Grounded || Elevation != num)
 		{
 			verticalVelocity = 0f;
+		}
+		if (Grounded || verticalVelocity >= 0f)
+		{
+			highFallVoicePlayed = false;
+		}
+		else if (!highFallVoicePlayed &&
+			world.TryGetNearestSupportBelow(Feet, Elevation, 0.32f, out float support) &&
+			Elevation - support >= HighFallVoiceHeight)
+		{
+			highFallVoicePlayed = true;
+			FellFromHighPlace?.Invoke();
 		}
 	}
 

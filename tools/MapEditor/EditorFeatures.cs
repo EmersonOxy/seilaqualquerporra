@@ -11,8 +11,11 @@ namespace MapEditor;
 internal static unsafe partial class Program
 {
     private static readonly List<MapObject> selectedObjects = new();
+    private static readonly List<MapPortalNode> selectedPortals = new();
+    private static readonly List<MapCollectible> selectedItems = new();
     private static MapPortalNode? activePortal;
     private static MapCollectible? activeItem;
+    private static int selectionPrimaryKind = -1; // 0 objects, 1 portals, 2 collectibles
     private static int hierarchyTab;   // 0 objects, 1 portals, 2 collectibles
     private static int mainTab;        // 0 create, 1 tools, 2 links, 3 file
     private static int inspectorTab;   // 0 transform, 1 faces, 2 settings
@@ -79,29 +82,62 @@ internal static unsafe partial class Program
     private static void ClearSelection()
     {
         selectedObjects.Clear();
+        selectedPortals.Clear();
+        selectedItems.Clear();
         selected = null;
         activePortal = null;
         activeItem = null;
+        selectionPrimaryKind = -1;
+    }
+
+    private static int SelectedCount => selectedObjects.Count + selectedPortals.Count + selectedItems.Count;
+
+    private static void SyncSelectionAnchors(int preferredKind)
+    {
+        selected = selectedObjects.Count > 0 ? selectedObjects[^1] : null;
+        activePortal = selectedPortals.Count > 0 ? selectedPortals[^1] : null;
+        activeItem = selectedItems.Count > 0 ? selectedItems[^1] : null;
+        selectionPrimaryKind = preferredKind switch
+        {
+            0 when selectedObjects.Count > 0 => 0,
+            1 when selectedPortals.Count > 0 => 1,
+            2 when selectedItems.Count > 0 => 2,
+            _ when selectedObjects.Count > 0 => 0,
+            _ when selectedPortals.Count > 0 => 1,
+            _ when selectedItems.Count > 0 => 2,
+            _ => -1
+        };
     }
 
     private static void SelectObject(MapObject obj, bool ctrl)
     {
         if (!ctrl) ClearSelection();
-        if (ctrl && selectedObjects.Contains(obj))
-            selectedObjects.Remove(obj);
-        else if (!selectedObjects.Contains(obj))
-            selectedObjects.Add(obj);
-        selected = selectedObjects.Count > 0 ? selectedObjects[^1] : null;
-        activePortal = null; activeItem = null;
-        hierarchyTab = 0;
+        bool removed = ctrl && selectedObjects.Remove(obj);
+        if (!removed && !selectedObjects.Contains(obj)) selectedObjects.Add(obj);
+        SyncSelectionAnchors(removed ? -1 : 0);
+        hierarchyTab = selectionPrimaryKind < 0 ? 0 : selectionPrimaryKind;
     }
 
-    private static void SelectPortal(MapPortalNode portal)
+    private static void SelectPortal(MapPortalNode portal, bool ctrl = false)
     {
-        ClearSelection();
-        activePortal = portal;
+        if (linking)
+        {
+            ClearSelection();
+            selectedPortals.Add(portal);
+            SyncSelectionAnchors(1);
+            hierarchyTab = 1;
+            CompletePortalLinkSelection(portal);
+            return;
+        }
+        if (!ctrl) ClearSelection();
+        bool removed = ctrl && selectedPortals.Remove(portal);
+        if (!removed && !selectedPortals.Contains(portal)) selectedPortals.Add(portal);
+        SyncSelectionAnchors(removed ? -1 : 1);
         hierarchyTab = 1;
-        if (!linking) return;
+    }
+
+    private static void CompletePortalLinkSelection(MapPortalNode portal)
+    {
         if (linkSource == null)
         {
             linkSource = portal;
@@ -120,10 +156,12 @@ internal static unsafe partial class Program
         }
     }
 
-    private static void SelectItem(MapCollectible item)
+    private static void SelectItem(MapCollectible item, bool ctrl = false)
     {
-        ClearSelection();
-        activeItem = item;
+        if (!ctrl) ClearSelection();
+        bool removed = ctrl && selectedItems.Remove(item);
+        if (!removed && !selectedItems.Contains(item)) selectedItems.Add(item);
+        SyncSelectionAnchors(removed ? -1 : 2);
         hierarchyTab = 2;
     }
 
@@ -165,9 +203,9 @@ internal static unsafe partial class Program
             return;
         }
         int portal = HoverPortalIndex(mouse);
-        if (portal >= 0) { SelectPortal(document.PortalNodes[portal]); return; }
+        if (portal >= 0) { SelectPortal(document.PortalNodes[portal], ctrl); return; }
         int item = HoverItemIndex(mouse);
-        if (item >= 0) { SelectItem(document.Collectibles[item]); return; }
+        if (item >= 0) { SelectItem(document.Collectibles[item], ctrl); return; }
         MapObject? hit = Pick(mouse);
         if (hit != null) { SelectObject(hit, ctrl); return; }
         pendingMarquee = true;
@@ -199,8 +237,21 @@ internal static unsafe partial class Program
                     !selectedObjects.Contains(obj))
                     selectedObjects.Add(obj);
             }
-            selected = selectedObjects.Count > 0 ? selectedObjects[^1] : null;
-            if (selected != null) hierarchyTab = 0;
+            foreach (MapPortalNode portal in document.PortalNodes)
+            {
+                Vector2 point = Raylib.GetWorldToScreen(portal.Center, camera);
+                if (point.X >= x0 && point.X <= x1 && point.Y >= y0 && point.Y <= y1 &&
+                    !selectedPortals.Contains(portal)) selectedPortals.Add(portal);
+            }
+            foreach (MapCollectible item in document.Collectibles)
+            {
+                if (!item.Visible) continue;
+                Vector2 point = Raylib.GetWorldToScreen(item.Position, camera);
+                if (point.X >= x0 && point.X <= x1 && point.Y >= y0 && point.Y <= y1 &&
+                    !selectedItems.Contains(item)) selectedItems.Add(item);
+            }
+            SyncSelectionAnchors(-1);
+            if (selectionPrimaryKind >= 0) hierarchyTab = selectionPrimaryKind;
         }
         pendingMarquee = false;
         activeMarquee = false;
@@ -218,35 +269,57 @@ internal static unsafe partial class Program
         Raylib.DrawRectangleLinesEx(bounds, 2f, new Color(96, 176, 241, 255));
     }
 
-    private static Vector3? SelectedPivot() =>
-        selected != null ? selected.Position :
-        activePortal != null ? activePortal.Center :
-        activeItem != null ? activeItem.Position : null;
+    private static Vector3? SelectedPivot()
+    {
+        if (SelectedCount == 0) return null;
+        Vector3 total = Vector3.Zero;
+        foreach (MapObject obj in selectedObjects) total += obj.Position;
+        foreach (MapPortalNode portal in selectedPortals) total += portal.Center;
+        foreach (MapCollectible item in selectedItems) total += item.Position;
+        return total / SelectedCount;
+    }
 
     private static void MoveSelected(Vector3 delta)
     {
         foreach (MapObject obj in selectedObjects) obj.Position += delta;
-        if (activePortal != null) activePortal.Center += delta;
-        if (activeItem != null) activeItem.Position += delta;
+        foreach (MapPortalNode portal in selectedPortals) portal.Center += delta;
+        foreach (MapCollectible item in selectedItems) item.Position += delta;
         Changed();
     }
 
     private static void TransformSelection(int axisIndex, float delta)
     {
         Vector3 axis = Axis(axisIndex);
-        if (selected != null)
+        Vector3? pivot = SelectedPivot();
+        if (!pivot.HasValue) return;
+        foreach (MapObject obj in selectedObjects)
         {
-            foreach (MapObject obj in selectedObjects)
+            if (mode == 0) obj.Position += axis * delta;
+            if (mode == 1) obj.Rotation += axis * (delta * 18f);
+            if (mode == 2) ResizeAxis(obj, axisIndex, delta, uniform);
+        }
+        Quaternion rotation = Quaternion.CreateFromAxisAngle(axis, delta * 18f * MathF.PI / 180f);
+        float scale = MathF.Max(.05f, 1f + delta);
+        foreach (MapPortalNode portal in selectedPortals)
+        {
+            if (mode == 0) portal.Center += axis * delta;
+            if (mode == 1)
             {
-                if (mode == 0) obj.Position += axis * delta;
-                if (mode == 1) obj.Rotation += axis * (delta * 18f);
-                if (mode == 2) ResizeAxis(obj, axisIndex, delta, uniform);
+                portal.Center = pivot.Value + Vector3.Transform(portal.Center - pivot.Value, rotation);
+                portal.Normal = Vector3.Normalize(Vector3.Transform(portal.Normal, rotation));
+            }
+            if (mode == 2)
+            {
+                portal.Center = pivot.Value + (portal.Center - pivot.Value) * scale;
+                portal.Radius = MathF.Max(.5f, portal.Radius * scale);
             }
         }
-        else if (activePortal != null && mode == 0)
-            activePortal.Center += axis * delta;
-        else if (activeItem != null && mode == 0)
-            activeItem.Position += axis * delta;
+        foreach (MapCollectible item in selectedItems)
+        {
+            if (mode == 0) item.Position += axis * delta;
+            if (mode == 1) item.Position = pivot.Value + Vector3.Transform(item.Position - pivot.Value, rotation);
+            if (mode == 2) item.Position = pivot.Value + (item.Position - pivot.Value) * scale;
+        }
         Changed();
     }
 
@@ -327,8 +400,8 @@ internal static unsafe partial class Program
         {
             if (!item.Visible) continue;
             Raylib.DrawSphere(item.Position, .31f,
-                item == activeItem ? new Color(255, 235, 145, 255) : Color.Gold);
-            Raylib.DrawSphereWires(item.Position, .39f, 8, 8, Color.Yellow);
+                selectedItems.Contains(item) ? new Color(255, 235, 145, 255) : Color.Gold);
+            Raylib.DrawSphereWires(item.Position, selectedItems.Contains(item) ? .44f : .39f, 8, 8, Color.Yellow);
         }
         foreach (MapPortalNode node in document.PortalNodes)
         {
@@ -341,10 +414,10 @@ internal static unsafe partial class Program
                 float t0 = j * MathF.Tau / 40f, t1 = (j + 1) * MathF.Tau / 40f;
                 Vector3 a = node.Center + node.Radius * (tangent * MathF.Cos(t0) + bitangent * MathF.Sin(t0));
                 Vector3 b = node.Center + node.Radius * (tangent * MathF.Cos(t1) + bitangent * MathF.Sin(t1));
-                Raylib.DrawLine3D(a, b, node == activePortal ? Color.Yellow : Color.SkyBlue);
+                Raylib.DrawLine3D(a, b, selectedPortals.Contains(node) ? Color.Yellow : Color.SkyBlue);
             }
-            Raylib.DrawSphere(node.Center, node == activePortal ? .28f : .21f,
-                node == activePortal ? Color.Yellow : Color.SkyBlue);
+            Raylib.DrawSphere(node.Center, selectedPortals.Contains(node) ? .30f : .21f,
+                selectedPortals.Contains(node) ? Color.Yellow : Color.SkyBlue);
             if (node.DestinationId is Guid targetId)
             {
                 MapPortalNode? target = document.PortalNodes.Find(x => x.Id == targetId);
@@ -388,13 +461,13 @@ internal static unsafe partial class Program
     private static void BeginLink()
     {
         mainTab = 2; hierarchyTab = 1;
-        linking = true; linkSource = activePortal;
-        Toast(activePortal != null ? "Clique no portal de destino" : "Clique na origem e depois no destino");
+        linking = true; linkSource = selectionPrimaryKind == 1 ? activePortal : null;
+        Toast(linkSource != null ? "Clique no portal de destino" : "Clique na origem e depois no destino");
     }
 
     private static void ReverseSelectedLink()
     {
-        MapPortalNode? source = activePortal;
+        MapPortalNode? source = selectionPrimaryKind == 1 ? activePortal : null;
         if (source != null && source.DestinationId == null)
             source = document.PortalNodes.Find(x => x.DestinationId == activePortal!.Id);
         if (source == null || source.DestinationId == null)
@@ -404,47 +477,35 @@ internal static unsafe partial class Program
         }
         Guid destination = source.DestinationId.Value;
         document.ReverseLink(source.Id);
-        activePortal = document.PortalNodes.Find(x => x.Id == destination);
+        SelectPortal(document.PortalNodes.Find(x => x.Id == destination)!);
         Changed();
         Toast("Origem e destino invertidos");
     }
 
     private static void DeleteSelectedEntities()
     {
-        if (selectedObjects.Count > 0)
-        {
-            foreach (MapObject o in selectedObjects) document.Objects.Remove(o);
-            Toast(selectedObjects.Count + " objeto(s) excluido(s)");
-            ClearSelection(); Changed(); return;
-        }
-        if (activeItem != null)
-        {
-            document.Collectibles.Remove(activeItem);
-            ClearSelection(); Changed(); Toast("Coletavel excluido"); return;
-        }
-        if (activePortal == null) return;
-        Guid id = activePortal.Id;
+        if (SelectedCount == 0) return;
+        int count = SelectedCount;
+        HashSet<Guid> removedPortalIds = selectedPortals.Select(portal => portal.Id).ToHashSet();
+        foreach (MapObject obj in selectedObjects) document.Objects.Remove(obj);
+        foreach (MapCollectible item in selectedItems) document.Collectibles.Remove(item);
         foreach (MapPortalNode node in document.PortalNodes)
-            if (node.DestinationId == id) node.DestinationId = null;
-        document.PortalNodes.Remove(activePortal);
-        ClearSelection(); Changed(); Toast("Portal excluido e ligacoes atualizadas");
+            if (node.DestinationId is Guid destination && removedPortalIds.Contains(destination))
+                node.DestinationId = null;
+        document.PortalNodes.RemoveAll(portal => removedPortalIds.Contains(portal.Id));
+        ClearSelection(); Changed(); Toast(count + " entidade(s) excluida(s)");
     }
 
     private static void DuplicateSelectedEntities()
     {
-        if (selectedObjects.Count == 0)
-        {
-            if (activeItem != null)
-            {
-                MapCollectible item = new() { Name = activeItem.Name + " copia",
-                    Position = activeItem.Position + Vector3.UnitX, RequiredPortal = activeItem.RequiredPortal };
-                document.Collectibles.Add(item);
-                SelectItem(item);
-                Changed(); Toast("Esfera duplicada");
-            }
+        if (SelectedCount == 0)
             return;
-        }
-        List<MapObject> copied = new();
+
+        List<MapObject> copiedObjects = new();
+        List<MapPortalNode> copiedPortals = new();
+        List<MapCollectible> copiedItems = new();
+        Dictionary<Guid, Guid> copiedPortalIds = new();
+
         foreach (MapObject source in selectedObjects)
         {
             MapObject copy = new()
@@ -454,14 +515,44 @@ internal static unsafe partial class Program
                 Size = source.Size, Rotation = source.Rotation, Solid = source.Solid,
                 Surface = source.Surface, Visible = source.Visible
             };
-            document.Objects.Add(copy);
-            copied.Add(copy);
+            copiedObjects.Add(copy);
         }
-        selectedObjects.Clear();
-        selectedObjects.AddRange(copied);
-        selected = selectedObjects[^1];
+        foreach (MapPortalNode source in selectedPortals)
+        {
+            MapPortalNode copy = new()
+            {
+                Name = source.Name + " copia", Center = source.Center + new Vector3(1f, 0f, 1f),
+                Normal = source.Normal, Radius = source.Radius, OneWay = source.OneWay
+            };
+            copiedPortalIds[source.Id] = copy.Id;
+            copiedPortals.Add(copy);
+        }
+        for (int i = 0; i < selectedPortals.Count; i++)
+        {
+            Guid? destination = selectedPortals[i].DestinationId;
+            copiedPortals[i].DestinationId = destination is Guid id && copiedPortalIds.TryGetValue(id, out Guid copyId)
+                ? copyId : null;
+        }
+        foreach (MapCollectible source in selectedItems)
+        {
+            copiedItems.Add(new MapCollectible
+            {
+                Name = source.Name + " copia", Position = source.Position + new Vector3(1f, 0f, 1f),
+                RequiredPortal = source.RequiredPortal, Visible = source.Visible
+            });
+        }
+
+        ClearSelection();
+        document.Objects.AddRange(copiedObjects);
+        document.PortalNodes.AddRange(copiedPortals);
+        document.Collectibles.AddRange(copiedItems);
+        selectedObjects.AddRange(copiedObjects);
+        selectedPortals.AddRange(copiedPortals);
+        selectedItems.AddRange(copiedItems);
+        SyncSelectionAnchors(copiedItems.Count > 0 ? 2 : copiedPortals.Count > 0 ? 1 : 0);
+        if (selectionPrimaryKind >= 0) hierarchyTab = selectionPrimaryKind;
         Changed();
-        Toast(copied.Count + " objeto(s) duplicado(s)");
+        Toast(SelectedCount + " entidade(s) duplicada(s)");
     }
 }
 
@@ -533,6 +624,8 @@ internal static unsafe partial class Program
             15, 88, 18, linking ? Color.Yellow : Color.White);
         if (updates?.Status is string updateStatus)
             DrawTextSmooth(updateStatus, 570, 15, 16, Color.LightGray);
+        if (looking)
+            DrawTextSmooth($"Camera: {cameraMoveSpeed:0.0} (scroll)", 815, 51, 16, Color.LightGray);
         DrawMarquee();
 
         Raylib.DrawRectangle((int)right, 82, (int)PanelWidth, h - 114, panel);
@@ -554,7 +647,7 @@ internal static unsafe partial class Program
             _ => document.Collectibles.Count
         };
         DrawTextSmooth(total + " elemento(s)" +
-            (selectedObjects.Count > 1 ? " | " + selectedObjects.Count + " selecionados" : ""),
+            (SelectedCount > 0 ? " | " + SelectedCount + " selecionados" : ""),
             (int)right + 15, 130, 16, Color.LightGray);
 
         int listTop = 155;
@@ -577,13 +670,13 @@ internal static unsafe partial class Program
                 MapPortalNode? destination = p.DestinationId is Guid destId
                     ? document.PortalNodes.Find(n => n.Id == destId) : null;
                 title = p.Name + (destination == null ? " (sem ligacao)" : " > " + destination.Name);
-                selectedRow = p == activePortal;
+                selectedRow = selectedPortals.Contains(p);
             }
             else
             {
                 MapCollectible item = document.Collectibles[index];
                 title = item.Name;
-                selectedRow = item == activeItem;
+                selectedRow = selectedItems.Contains(item);
             }
             Rectangle rect = new(right + 11, listTop + i * 27, PanelWidth - 22, 25);
             if (selectedRow)
@@ -592,8 +685,8 @@ internal static unsafe partial class Program
             {
                 bool ctrl = Key(341) || Key(345);
                 if (hierarchyTab == 0) SelectObject(document.Objects[index], ctrl);
-                else if (hierarchyTab == 1) SelectPortal(document.PortalNodes[index]);
-                else SelectItem(document.Collectibles[index]);
+                else if (hierarchyTab == 1) SelectPortal(document.PortalNodes[index], ctrl);
+                else SelectItem(document.Collectibles[index], ctrl);
             }
         }
         Vector2 mouse = Raylib.GetMousePosition();
@@ -602,9 +695,9 @@ internal static unsafe partial class Program
 
         int tabY = listTop + maxItems * 27 + 10;
         Raylib.DrawLine((int)right + 10, tabY - 4, w - 10, tabY - 4, Color.Gray);
-        string[] tabs = activePortal != null ?
+        string[] tabs = selectionPrimaryKind == 1 ?
             new[] { "Posicao", "Ligacao", "Orientacao" } :
-            activeItem != null ? new[] { "Posicao", "Pontuacao", "Acoes" } :
+            selectionPrimaryKind == 2 ? new[] { "Posicao", "Pontuacao", "Acoes" } :
             new[] { "Transformar", "Faces", "Objeto" };
         for (int i = 0; i < 3; i++)
         {
@@ -613,13 +706,16 @@ internal static unsafe partial class Program
                 inspectorTab = i;
         }
         int y = tabY + 45;
-        if (activePortal != null) DrawPortalInspector(activePortal, (int)right + 15, ref y);
-        else if (activeItem != null) DrawItemInspector(activeItem, (int)right + 15, ref y);
-        else if (selected != null) DrawObjectInspector((int)right + 15, ref y);
+        if (selectionPrimaryKind == 1 && activePortal != null)
+            DrawPortalInspector(activePortal, (int)right + 15, ref y);
+        else if (selectionPrimaryKind == 2 && activeItem != null)
+            DrawItemInspector(activeItem, (int)right + 15, ref y);
+        else if (selectionPrimaryKind == 0 && selected != null)
+            DrawObjectInspector((int)right + 15, ref y);
         else DrawTextSmooth("Clique na cena para selecionar.", (int)right + 15, y, 18, Color.LightGray);
 
         Raylib.DrawRectangle(0, h - 32, w, 32, new Color(22, 25, 30, 255));
-        DrawTextSmooth("Ctrl: selecionar varios | Arrastar no vazio: area | 1/2/3: ferramenta | Ctrl+S: salvar",
+        DrawTextSmooth("Ctrl+clique: adicionar/remover | Arrastar: selecionar area | Botao direito + scroll: velocidade da camera | 1/2/3: ferramenta",
             16, h - 24, 16, Color.White);
         if (modified)
             DrawTextSmooth("* Alteracoes nao salvas", w - 260, h - 24, 16, Color.Yellow);

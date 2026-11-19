@@ -206,6 +206,9 @@ internal sealed class CollisionWorld
     public bool GroundBelow(Vector2 feet, float elevation, float radius, out float ground) =>
         TrySupport(feet, elevation - .09f, elevation + .05f, radius, out ground);
 
+    public bool TryGetNearestSupportBelow(Vector2 feet, float elevation, float radius, out float ground) =>
+        TrySupport(feet, -MathF.Max(1000f, halfWorld * 8f), elevation - .05f, radius, out ground);
+
     public bool TryRampSlide(Vector2 feet, float elevation, out Vector2 downhill, out float gravityFactor)
     {
         foreach (SceneRamp r in ramps)

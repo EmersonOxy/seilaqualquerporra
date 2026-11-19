@@ -12,5 +12,9 @@
   <ItemGroup>
     <PackageReference Include="Raylib-cs" Version="7.0.2" />
     <PackageReference Include="Velopack" Version="1.2.161" />
+    <None Include="../assets/audio/player/voz ao cair de lugar alto.mp3"
+          Link="assets/audio/player/voz ao cair de lugar alto.mp3"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

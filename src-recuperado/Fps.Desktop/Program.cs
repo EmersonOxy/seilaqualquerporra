@@ -28,17 +28,23 @@ internal static class Program
 		{
 			return;
 		}
+		bool audioReady = false;
 		try
 		{
-			Run(flag);
+			Raylib.InitAudioDevice();
+			audioReady = Raylib.IsAudioDeviceReady();
+			using PlayerAudio playerAudio = new PlayerAudio();
+			Run(flag, playerAudio);
 		}
 		finally
 		{
+			if (audioReady)
+				Raylib.CloseAudioDevice();
 			Raylib.CloseWindow();
 		}
 	}
 
-	private static void Run(bool installed)
+	private static void Run(bool installed, PlayerAudio playerAudio)
 	{
 		//IL_022c: Unknown result type (might be due to invalid IL or missing references)
 		//IL_0178: Unknown result type (might be due to invalid IL or missing references)
@@ -58,6 +64,7 @@ internal static class Program
         float mapCheckElapsed = 0f;
         SceneManager sceneManager = new SceneManager(initialScene);
 		PlayerController playerController = new PlayerController(sceneManager.Active.Spawn);
+		playerController.FellFromHighPlace += playerAudio.PlayHighFallVoice;
 		CollectibleManager collectibleManager = new CollectibleManager(sceneManager.Active);
 		playerController.PortalTraversed += collectibleManager.NotifyPortalTraversed;
 		float collectibleAnimation = 0f;
