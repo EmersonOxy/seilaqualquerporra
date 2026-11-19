@@ -4,7 +4,7 @@ using Fps.Desktop.Gameplay;
 using Fps.Desktop.Physics;
 using Fps.Desktop.Scenes;
 
-var scene = ArenaScene.Create();
+var scene = SceneMapIO.CreateDefault().ToScene();
 var world = new CollisionWorld(scene);
 
 void Assert(bool condition, string reason)
@@ -61,7 +61,26 @@ try
     Assert(opened.Objects[^1].Kind == MapObjectKind.Cylinder, "Cylinder changed while saving");
     Assert(opened.Objects[^1].Position == new Vector3(60f, 1f, 55f),
         "Position changed after save/reload");
-    Assert(opened.Portals.Count == 3, "Portals were lost in JSON");
+    Assert(opened.PortalNodes.Count == 6, "Portal endpoints were lost in JSON");
+    Assert(opened.Collectibles.Count == 13, "Collectibles were lost in JSON");
+    // An authored collectible's position must survive serialization and appear in gameplay.
+    opened.Collectibles[0].Position = new Vector3(11f, 2f, 16f);
+    Assert(opened.ToScene().Collectibles[0].Position == new Vector3(11f, 2f, 16f),
+        "Collectible in scene does not follow editor position");
+    // Link a pair using independent endpoints and reverse its direction.
+    MapPortalNode extraSource = new() { Name = "Teste origem", Center = new Vector3(60f, 0f, 55f),
+        Normal = Vector3.UnitY };
+    MapPortalNode extraDestination = new() { Name = "Teste destino", Center = new Vector3(70f, 3f, 55f),
+        Normal = Vector3.UnitZ };
+    opened.PortalNodes.Add(extraSource);
+    opened.PortalNodes.Add(extraDestination);
+    opened.LinkPortals(extraSource.Id, extraDestination.Id);
+    Assert(extraSource.DestinationId == extraDestination.Id && extraSource.OneWay,
+        "Portal linking failed");
+    opened.ReverseLink(extraSource.Id);
+    Assert(extraSource.DestinationId == null && extraDestination.DestinationId == extraSource.Id,
+        "Source and destination failed to swap");
+    Assert(opened.ToScene().PortalPairs.Length == 4, "Linked portal is absent from game scene");
     var walkable = new CollisionWorld(opened.ToScene());
 
     Vector2 east = new(25.8f, -5f);
