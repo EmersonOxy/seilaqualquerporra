@@ -171,7 +171,7 @@ internal sealed class OutlinePostProcess : IDisposable
 		height = renderHeight;
 		scene = LoadSampledDepthTarget(width, height);
 		normals = ((scene.Id != 0) ? Raylib.LoadRenderTexture(width, height) : default(RenderTexture2D));
-		if (normals.Id != 0 && CBool.op_Implicit(Rlgl.FramebufferComplete(normals.Id)))
+		if (normals.Id != 0 && ((sbyte)(Rlgl.FramebufferComplete(normals.Id)) != 0))
 		{
 			Raylib.SetTextureFilter(normals.Texture, (TextureFilter)1);
 			Raylib.SetTextureWrap(normals.Texture, (TextureWrap)1);
@@ -243,7 +243,7 @@ internal sealed class OutlinePostProcess : IDisposable
 		};
 		Rlgl.FramebufferAttach(val.Id, val.Texture.Id, (FramebufferAttachType)0, (FramebufferAttachTextureType)100, 0);
 		Rlgl.FramebufferAttach(val.Id, val.Depth.Id, (FramebufferAttachType)100, (FramebufferAttachTextureType)100, 0);
-		if (val.Texture.Id != 0 && val.Depth.Id != 0 && CBool.op_Implicit(Rlgl.FramebufferComplete(val.Id)))
+		if (val.Texture.Id != 0 && val.Depth.Id != 0 && ((sbyte)(Rlgl.FramebufferComplete(val.Id)) != 0))
 		{
 			Raylib.SetTextureWrap(val.Depth, (TextureWrap)1);
 			Raylib.SetTextureWrap(val.Texture, (TextureWrap)1);
