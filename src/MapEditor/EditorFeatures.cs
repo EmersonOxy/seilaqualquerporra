@@ -431,7 +431,17 @@ internal static unsafe partial class Program
         }
         foreach (MapObject obj in selectedObjects)
             Raylib.DrawCubeWiresV(obj.Position, obj.Size, new Color(245, 210, 100, 255));
-        DrawGizmo();
+        Rlgl.DisableDepthTest();
+        Rlgl.DisableDepthMask();
+        try
+        {
+            DrawGizmo();
+        }
+        finally
+        {
+            Rlgl.EnableDepthMask();
+            Rlgl.EnableDepthTest();
+        }
     }
 
     private static void AddCollectible()
