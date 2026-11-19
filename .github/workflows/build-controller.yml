@@ -1,7 +1,7 @@
-name: Compilar prototipo de coleta e portais
+name: Compilar mapa parkour com portais
 on:
   push:
-    branches: [feature/coletaveis-portais]
+    branches: [feature/mapa-parkour-portais]
     paths:
       - 'src-recuperado/**'
       - '.github/workflows/build-controller.yml'
@@ -28,7 +28,7 @@ jobs:
       - name: Disponibilizar build experimental para testes
         uses: actions/upload-artifact@v4
         with:
-          name: ControladorFPS-Coletaveis-Portais-win-x64
+          name: ControladorFPS-Parkour-Portais-win-x64
           path: dist/ControladorFPS/
           if-no-files-found: error
           retention-days: 14
