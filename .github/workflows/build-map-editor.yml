@@ -1,0 +1,39 @@
+name: Compilar jogo e editor de mapas (Windows)
+on:
+  push:
+    branches: [feature/fisica-rampas-escadas]
+    paths:
+      - 'src-recuperado/**'
+      - 'tools/MapEditor/**'
+      - 'tests/LevelValidation/**'
+      - '.github/workflows/build-map-editor.yml'
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Compilar jogo
+        run: dotnet build src-recuperado/ControladorFPS.csproj -c Release --nologo
+      - name: Compilar editor independente
+        run: dotnet build tools/MapEditor/MapEditor.csproj -c Release --nologo
+      - name: Testar fisica e serializacao
+        run: dotnet run --project tests/LevelValidation/LevelValidation.csproj -c Release --nologo
+      - name: Publicar jogo offline Windows
+        run: dotnet publish src-recuperado/ControladorFPS.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist --nologo
+      - name: Publicar editor offline Windows na mesma pasta
+        run: dotnet publish tools/MapEditor/MapEditor.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist --nologo
+      - name: Publicar ZIP contendo jogo e editor
+        uses: actions/upload-artifact@v4
+        with:
+          name: ControladorFPS-Com-Editor-de-Mapas-win-x64
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
