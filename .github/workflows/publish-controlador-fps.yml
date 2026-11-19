@@ -1,0 +1,25 @@
+name: Publicar Controlador FPS 1.1.0
+on:
+  push:
+    branches: [download-v1.1.0]
+    paths: [.github/workflows/publish-controlador-fps.yml]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Publicar versões do Controlador FPS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$(gh release view v1.0.0 --json isDraft --jq .isDraft)" == true ]]; then
+            git fetch --depth=1 origin download-v1.0.0
+            git archive FETCH_HEAD release-v1.0.0 | tar -xf -
+            gh release upload v1.0.0 release-v1.0.0/ControladorFPS-win-Setup.exe release-v1.0.0/ControladorFPS-1.0.0-full.nupkg release-v1.0.0/releases.win.json
+            gh release edit v1.0.0 --draft=false --latest=false
+          fi
+          gh release create v1.1.0 release-v1.1.0/ControladorFPS-win-Setup.exe release-v1.1.0/ControladorFPS-1.1.0-full.nupkg release-v1.1.0/ControladorFPS-1.1.0-delta.nupkg release-v1.1.0/releases.win.json --target "$GITHUB_SHA" --title 'Controlador FPS 1.1.0' --notes 'Espaço para pular. Os dois buracos no chão funcionam como portais conectados.' --latest
