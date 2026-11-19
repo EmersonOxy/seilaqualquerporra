@@ -16,6 +16,8 @@ internal sealed class WorldRenderer : IDisposable
 
 	private readonly Model cube;
 
+    private readonly Model cylinder;
+
 	private readonly Texture2D checker;
 
 	private readonly Shader lighting;
@@ -134,6 +136,8 @@ void main() {
 		Raylib.SetMaterialTexture(ref *floor.Materials, (MaterialMapIndex)0, checker);
 		cube = Raylib.LoadModelFromMesh(Raylib.GenMeshCube(1f, 1f, 1f));
 		cube.Materials[0].Shader = lighting;
+        cylinder = Raylib.LoadModelFromMesh(Raylib.GenMeshCylinder(.5f, 1f, 18));
+        cylinder.Materials[0].Shader = lighting;
 	}
 
 
@@ -173,7 +177,9 @@ void main() {
 				Surface.Edge => new Color(181, 149, 85, 255), 
 				_ => new Color(76, 85, 92, 255), 
 			};
-			Raylib.DrawModelEx(cube, sceneBox.Center, Vector3.UnitY, 0f, sceneBox.Size, val2);
+            SceneTransform.ToAxisAngle(SceneTransform.Orientation(sceneBox.RotationDegrees),
+                out Vector3 axis, out float degrees);
+            Raylib.DrawModelEx(cube, sceneBox.Center, axis, degrees, sceneBox.Size, val2);
 		}
 		for (int i = 0; i < collectibles.Items.Count; i++)
 		{
@@ -191,6 +197,30 @@ void main() {
         {
             Raylib.DrawModelEx(cube, ramp.Center, ramp.RotationAxis, ramp.AngleDegrees,
                 ramp.BoxSize, new Color(187, 155, 100, 255));
+        }
+        foreach (SceneCylinder cyl in scene.Cylinders)
+        {
+            Quaternion orientation = SceneTransform.Orientation(cyl.RotationDegrees);
+            SceneTransform.ToAxisAngle(orientation, out Vector3 axis, out float degrees);
+            Vector3 basePos = cyl.Center -
+                Vector3.Transform(Vector3.UnitY * cyl.Size.Y * .5f, orientation);
+            Raylib.DrawModelEx(cylinder, basePos, axis, degrees, cyl.Size,
+                new Color(96, 156, 171, 255));
+        }
+        foreach (SceneLadder ladder in scene.Ladders)
+        {
+            Quaternion orientation = SceneTransform.Orientation(ladder.RotationDegrees);
+            Vector3 left = Vector3.Transform(new Vector3(-ladder.Size.X * .5f, 0f, 0f), orientation);
+            Vector3 right = Vector3.Transform(new Vector3(ladder.Size.X * .5f, 0f, 0f), orientation);
+            float halfHeight = ladder.Size.Y * .5f;
+            Raylib.DrawLine3D(ladder.Center + left - Vector3.UnitY * halfHeight,
+                ladder.Center + left + Vector3.UnitY * halfHeight, new Color(210, 184, 85, 255));
+            Raylib.DrawLine3D(ladder.Center + right - Vector3.UnitY * halfHeight,
+                ladder.Center + right + Vector3.UnitY * halfHeight, new Color(210, 184, 85, 255));
+            for (float y = -halfHeight + .28f; y < halfHeight; y += .32f)
+                Raylib.DrawLine3D(ladder.Center + left + Vector3.UnitY * y,
+                    ladder.Center + right + Vector3.UnitY * y,
+                    new Color(228, 214, 132, 255));
         }
         for (int i = 0; i < portalEndpoints.Length; i++)
         {
@@ -211,6 +241,7 @@ void main() {
 		//IL_002d: Unknown result type (might be due to invalid IL or missing references)
 		portal.Dispose();
 		Raylib.UnloadModel(cube);
+        Raylib.UnloadModel(cylinder);
 		Raylib.UnloadModel(floor);
 		Raylib.UnloadTexture(checker);
 		Raylib.UnloadShader(lighting);
