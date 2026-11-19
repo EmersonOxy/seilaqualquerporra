@@ -48,15 +48,15 @@ internal sealed class CollisionWorld
     {
         foreach (ScenePortalPair pair in portalPairs)
         {
-            foreach (ScenePortal portal in new[] { pair.First, pair.Second })
-            {
-                if (portal.InFloor && MathF.Abs(topY - portal.Center.Y) < .08f &&
-                    portal.Contains(point, radius))
-                    return true;
-            }
+            if (MatchesHole(pair.First, point, topY, radius) ||
+                MatchesHole(pair.Second, point, topY, radius))
+                return true;
         }
         return false;
     }
+
+    private static bool MatchesHole(ScenePortal portal, Vector2 point, float topY, float radius) =>
+        portal.InFloor && MathF.Abs(topY - portal.Center.Y) < .08f && portal.Contains(point, radius);
 
     // Returns the highest valid walkable surface below maxY and above minY.
     private bool TrySupport(Vector2 feet, float minY, float maxY, float radius, out float support)
