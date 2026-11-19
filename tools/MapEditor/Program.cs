@@ -95,7 +95,7 @@ internal static unsafe class Program
         if (looking)
         {
             Vector2 d = Raylib.GetMouseDelta();
-            yaw -= d.X * .0023f;
+            yaw += d.X * .0023f;
             pitch = Math.Clamp(pitch - d.Y * .0023f, -1.48f, 1.48f);
             Vector3 f = Forward();
             Vector3 right = Vector3.Normalize(Vector3.Cross(f, Vector3.UnitY));
