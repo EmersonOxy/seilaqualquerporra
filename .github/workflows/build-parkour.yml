@@ -7,7 +7,7 @@ on:
       - 'tests/LevelValidation/**'
       - '.github/workflows/build-parkour.yml'
   pull_request:
-    branches: [feature/coletaveis-portais]
+    branches: [feature/coletaveis-portais, main]
 permissions:
   contents: read
 jobs:
