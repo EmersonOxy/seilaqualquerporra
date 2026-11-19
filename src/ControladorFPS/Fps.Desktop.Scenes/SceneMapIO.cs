@@ -222,6 +222,39 @@ internal sealed class MapDocument
 internal static class SceneMapIO
 {
     public const string FileName = "map.json";
+
+    // Velopack keeps the runnable versions and updater under Aplicativo. The setup
+    // backup lives in Cache. Both are required, but should not clutter the package
+    // folder shown to users in Explorer.
+    public static void HidePackageSupportFolders()
+    {
+        if (!File.Exists(Path.Combine(AppContext.BaseDirectory, "sq.version"))) return;
+        string currentPath = Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory);
+        DirectoryInfo? appDirectory = Directory.GetParent(currentPath);
+        DirectoryInfo? productDirectory = appDirectory?.Parent;
+        if (appDirectory == null || productDirectory == null ||
+            !string.Equals(appDirectory.Name, "Aplicativo", StringComparison.OrdinalIgnoreCase) ||
+            !(string.Equals(productDirectory.Name, "Jogo", StringComparison.OrdinalIgnoreCase) ||
+              string.Equals(productDirectory.Name, "Editor", StringComparison.OrdinalIgnoreCase)))
+            return;
+
+        HideDirectory(appDirectory.FullName);
+        HideDirectory(Path.Combine(productDirectory.FullName, "Cache"));
+    }
+
+    private static void HideDirectory(string path)
+    {
+        try
+        {
+            if (!Directory.Exists(path)) return;
+            FileAttributes attributes = File.GetAttributes(path);
+            if ((attributes & FileAttributes.Hidden) == 0)
+                File.SetAttributes(path, attributes | FileAttributes.Hidden);
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+
     public static string DefaultPath
     {
         get

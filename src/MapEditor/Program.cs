@@ -60,7 +60,10 @@ internal static unsafe partial class Program
     {
         bool installed = OperatingSystem.IsWindows() && File.Exists(Path.Combine(AppContext.BaseDirectory, "sq.version"));
         if (installed)
+        {
             VelopackApp.Build().SetAutoApplyOnStartup(false).Run();
+            SceneMapIO.HidePackageSupportFolders();
+        }
 
         Raylib.SetConfigFlags((ConfigFlags)4);
         Raylib.InitWindow(1500, 900, "Denffy - Editor de Mapas");

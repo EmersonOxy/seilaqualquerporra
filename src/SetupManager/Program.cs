@@ -191,6 +191,9 @@ internal sealed class SetupProgress : Form
                 status.Text = appName + " restaurado.";
             }
 
+            HideDirectory(installDir);
+            HideDirectory(cacheDir);
+
             await Task.Delay(1200);
             Close();
         }
@@ -205,6 +208,19 @@ internal sealed class SetupProgress : Form
     private static string Quote(string value)
     {
         return "\"" + value.Replace("\"", "\\\"") + "\"";
+    }
+
+    private static void HideDirectory(string path)
+    {
+        try
+        {
+            if (!Directory.Exists(path)) return;
+            FileAttributes attributes = File.GetAttributes(path);
+            if ((attributes & FileAttributes.Hidden) == 0)
+                File.SetAttributes(path, attributes | FileAttributes.Hidden);
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 
     private async Task RunProcessAsync(string executable, string arguments)

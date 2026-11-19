@@ -21,6 +21,7 @@ internal static class Program
 		if (flag)
 		{
 			VelopackApp.Build().SetAutoApplyOnStartup(false).Run();
+			SceneMapIO.HidePackageSupportFolders();
 		}
 		Raylib.SetConfigFlags((ConfigFlags)8228);
 		Raylib.InitWindow(1280, 800, "Controlador FPS");
