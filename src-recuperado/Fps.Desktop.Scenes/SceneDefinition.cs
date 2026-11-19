@@ -6,9 +6,11 @@ namespace Fps.Desktop.Scenes;
 internal sealed class SceneDefinition(
     float size, float tileSize, Vector2 spawn, SceneBox[] boxes,
     ScenePortalPair[] portalPairs, SceneRamp[] ramps, float baseSize = 50f,
-    SceneCylinder[]? cylinders = null, SceneLadder[]? ladders = null)
+    SceneCylinder[]? cylinders = null, SceneLadder[]? ladders = null,
+    SceneCollectible[]? collectibles = null)
 {
     private readonly SceneCylinder[] sceneCylinders = cylinders ?? Array.Empty<SceneCylinder>();
+    private readonly SceneCollectible[] sceneCollectibles = collectibles ?? Array.Empty<SceneCollectible>();
     private readonly SceneLadder[] sceneLadders = ladders ?? Array.Empty<SceneLadder>();
 
     public float Size { get; } = size;
@@ -20,5 +22,6 @@ internal sealed class SceneDefinition(
     public ReadOnlySpan<ScenePortalPair> PortalPairs => portalPairs;
     public ReadOnlySpan<SceneCylinder> Cylinders => sceneCylinders;
     public ReadOnlySpan<SceneLadder> Ladders => sceneLadders;
+    public ReadOnlySpan<SceneCollectible> Collectibles => sceneCollectibles;
     public ScenePortalPair? Portals => portalPairs.Length > 0 ? portalPairs[0] : null;
 }
