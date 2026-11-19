@@ -40,6 +40,20 @@ internal sealed class PlayerController(Vector2 spawn)
 
 	public event Action<ScenePortal, ScenePortal>? PortalTraversed;
 
+    public void Respawn(Vector2 spawn)
+    {
+        Feet = spawn;
+        Elevation = 0f;
+        Grounded = true;
+        Height = 1.7f;
+        crouchToggle = false;
+        velocity = Vector2.Zero;
+        verticalVelocity = 0f;
+        exiting = null;
+        traversal = null;
+        Stop();
+    }
+
 	public void Stop()
 	{
 		ScenePortal? scenePortal = exiting;
@@ -125,7 +139,7 @@ internal sealed class PlayerController(Vector2 spawn)
 		}
 		Vector2 feet = Feet;
 		float elevation = Elevation;
-		Feet = world.Move(Feet, velocity * dt, Height, 0.32f, Elevation);
+		Feet = world.Move(Feet, velocity * dt, Height, 0.32f, ref Elevation, Grounded);
 		Vector2 vector3 = (Feet - feet) / dt;
 		if (Feet.X != feet.X + velocity.X * dt)
 		{
@@ -165,33 +179,37 @@ internal sealed class PlayerController(Vector2 spawn)
 			}
 			return;
 		}
-		ScenePortalPair? portals = world.Portals;
-		if (!portals.HasValue)
-		{
-			return;
-		}
-		ScenePortalPair valueOrDefault = portals.GetValueOrDefault();
-		if (Elevation <= -0.18f && verticalVelocity < 0f)
-		{
-			scenePortal = valueOrDefault.FloorOpeningAt(Feet, 0.3199f);
-			if (scenePortal.HasValue)
-			{
-				ScenePortal valueOrDefault2 = scenePortal.GetValueOrDefault();
-				BeginTraversal(valueOrDefault2, valueOrDefault2.Normal, valueOrDefault.Other(valueOrDefault2), forward);
-				return;
-			}
-		}
-		Vector3 before = new Vector3(previous.X, previousElevation, previous.Y);
-		Vector3 after = new Vector3(Feet.X, Elevation, Feet.Y);
-		if (CrossesFrame(valueOrDefault.First, before, after, out var side))
-		{
-			BeginTraversal(valueOrDefault.First, side, valueOrDefault.Second, forward);
-		}
-		else if (CrossesFrame(valueOrDefault.Second, before, after, out side))
-		{
-			BeginTraversal(valueOrDefault.Second, side, valueOrDefault.First, forward);
-		}
-	}
+        ReadOnlySpan<ScenePortalPair> pairs = world.PortalPairs;
+        if (Elevation <= -.18f && verticalVelocity < 0f)
+        {
+            foreach (ScenePortalPair pair in pairs)
+            {
+                ScenePortal? hole = pair.FloorOpeningAt(Feet, .3199f);
+                if (hole.HasValue)
+                {
+                    ScenePortal entry = hole.Value;
+                    BeginTraversal(entry, entry.Normal, pair.Other(entry), forward);
+                    return;
+                }
+            }
+        }
+
+        Vector3 before = new(previous.X, previousElevation, previous.Y);
+        Vector3 after = new(Feet.X, Elevation, Feet.Y);
+        foreach (ScenePortalPair pair in pairs)
+        {
+            if (CrossesFrame(pair.First, before, after, out Vector3 side))
+            {
+                BeginTraversal(pair.First, side, pair.Second, forward);
+                return;
+            }
+            if (CrossesFrame(pair.Second, before, after, out side))
+            {
+                BeginTraversal(pair.Second, side, pair.First, forward);
+                return;
+            }
+        }
+    }
 
 	private bool CrossesFrame(ScenePortal portal, Vector3 before, Vector3 after, out Vector3 side)
 	{
