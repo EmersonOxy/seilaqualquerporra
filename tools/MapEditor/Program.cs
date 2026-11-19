@@ -4,7 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using Fps.Desktop.Scenes;
+using Fps.Desktop.Updates;
 using Raylib_cs;
+using Velopack;
 
 namespace MapEditor;
 
@@ -23,6 +25,7 @@ internal static unsafe partial class Program
     private static int mode; // 0 move, 1 rotate, 2 size
     private static int objectScroll, draggedAxis = -1;
     private static bool dragging;
+    private static GameUpdates? updates;
     private static string status = "Clique para selecionar. Salve com Ctrl+S.";
     private static string? editing;
     private static string editBuffer = "";
@@ -32,10 +35,15 @@ internal static unsafe partial class Program
 
     public static void Main()
     {
+        bool installed = OperatingSystem.IsWindows() && File.Exists(Path.Combine(AppContext.BaseDirectory, "sq.version"));
+        if (installed)
+            VelopackApp.Build().SetAutoApplyOnStartup(false).Run();
+
         Raylib.SetConfigFlags((ConfigFlags)4);
         Raylib.InitWindow(1500, 900, "Denffy - Editor de Mapas");
         Raylib.SetWindowMinSize(1100, 700);
         Raylib.SetTargetFPS(90);
+        updates = installed ? new GameUpdates("editor") : null;
         InitializeEditorFont();
         try
         {
@@ -50,6 +58,8 @@ internal static unsafe partial class Program
         {
             float dt = Math.Clamp(Raylib.GetFrameTime(), .001f, .05f);
             Update(dt);
+            if (updates?.Tick(Press(295)) == true)
+                break;
             toastRemaining = MathF.Max(0f, toastRemaining - dt);
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(31, 33, 38, 255));

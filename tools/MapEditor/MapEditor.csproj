@@ -9,7 +9,9 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Raylib-cs" Version="7.0.2" />
+    <PackageReference Include="Velopack" Version="1.2.161" />
     <Compile Include="../../src-recuperado/Fps.Desktop.Scenes/*.cs" Link="Scenes/%(Filename)%(Extension)" />
     <Compile Include="../../src-recuperado/Fps.Desktop.Physics/CollisionWorld.cs" Link="Physics/CollisionWorld.cs" />
+    <Compile Include="../../src-recuperado/Fps.Desktop.Updates/GameUpdates.cs" Link="Updates/GameUpdates.cs" />
   </ItemGroup>
 </Project>

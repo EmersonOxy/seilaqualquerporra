@@ -531,6 +531,8 @@ internal static unsafe partial class Program
         DrawTextSmooth(linking ? "LIGACAO: selecione origem e destino na cena"
                     : $"MODO: {(mode == 0 ? "MOVER" : mode == 1 ? "GIRAR" : "TAMANHO")}",
             15, 88, 18, linking ? Color.Yellow : Color.White);
+        if (updates?.Status is string updateStatus)
+            DrawTextSmooth(updateStatus, 570, 15, 16, Color.LightGray);
         DrawMarquee();
 
         Raylib.DrawRectangle((int)right, 82, (int)PanelWidth, h - 114, panel);

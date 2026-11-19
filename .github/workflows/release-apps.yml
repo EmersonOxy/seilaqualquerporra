@@ -1,0 +1,55 @@
+name: Publicar jogo e editor separadamente
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Instalar Velopack CLI
+        run: dotnet tool install vpk --version 1.2.161 --tool-path ./.tools
+
+      - name: Publicar jogo
+        run: dotnet publish src-recuperado/ControladorFPS.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/game --nologo
+
+      - name: Publicar editor
+        run: dotnet publish tools/MapEditor/MapEditor.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/editor --nologo
+
+      - name: Criar pacote de atualização do jogo
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          ./.tools/vpk.exe pack --packId ControladorFPS --packVersion $version --packTitle "Controlador FPS" --packDir dist/game --mainExe ControladorFPS.exe --channel win --runtime win-x64 --outputDir dist/game-release
+
+      - name: Criar pacote de atualização do editor
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          ./.tools/vpk.exe pack --packId MapEditor --packVersion $version --packTitle "Editor de Mapas - Controlador FPS" --packDir dist/editor --mainExe MapEditor.exe --channel editor --runtime win-x64 --outputDir dist/editor-release
+
+      - name: Publicar canal independente do jogo
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./.tools/vpk.exe upload github --repoUrl https://github.com/${{ github.repository }} --token $env:GH_TOKEN --outputDir dist/game-release --channel win --publish --tag $env:GITHUB_REF_NAME --releaseName "Controlador FPS $env:GITHUB_REF_NAME"
+
+      - name: Publicar canal independente do editor
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./.tools/vpk.exe upload github --repoUrl https://github.com/${{ github.repository }} --token $env:GH_TOKEN --outputDir dist/editor-release --channel editor --publish --merge --tag $env:GITHUB_REF_NAME --releaseName "Controlador FPS $env:GITHUB_REF_NAME"

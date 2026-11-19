@@ -14,6 +14,8 @@ namespace Fps.Desktop.Updates;
 
 internal sealed class GameUpdates
 {
+	private readonly string applicationName;
+
 	private readonly UpdateManager? manager;
 
 	private Task<UpdateInfo?>? check;
@@ -44,8 +46,9 @@ internal sealed class GameUpdates
 		}
 	}
 
-	public GameUpdates()
+	public GameUpdates(string applicationName = "jogo")
 	{
+		this.applicationName = applicationName;
 		//IL_0082: Unknown result type (might be due to invalid IL or missing references)
 		//IL_0088: Expected Obj, but got Unknown
 		//IL_006e: Unknown result type (might be due to invalid IL or missing references)
@@ -67,7 +70,11 @@ internal sealed class GameUpdates
 			IUpdateSource val = (IUpdateSource)new SimpleFileSource(new DirectoryInfo(result.LocalPath));
 			val2 = val;
 		}
-		UpdateManager val3 = new UpdateManager(val2, (UpdateOptions)null, (IVelopackLocator)null);
+		UpdateOptions options = new UpdateOptions
+		{
+			ExplicitChannel = applicationName == "editor" ? "editor" : "win"
+		};
+		UpdateManager val3 = new UpdateManager(val2, options, (IVelopackLocator)null);
 		if (val3.IsInstalled)
 		{
 			manager = val3;
@@ -151,7 +158,7 @@ internal sealed class GameUpdates
 			available = activeCheck.GetAwaiter().GetResult();
 			if (available == null)
 			{
-				message = (installAfterCheck ? "O jogo já está atualizado" : null);
+				message = (installAfterCheck ? $"O {applicationName} já está atualizado" : null);
 				return;
 			}
 			if (installAfterCheck)
@@ -159,7 +166,7 @@ internal sealed class GameUpdates
 				StartDownload(available);
 				return;
 			}
-			message = $"Versão {available.TargetFullRelease.Version} disponível · F6 para atualizar";
+			message = $"Versão {available.TargetFullRelease.Version} disponível · F6 para atualizar o {applicationName}";
 		}
 		catch (Exception error)
 		{
@@ -192,7 +199,7 @@ internal sealed class GameUpdates
 
 	private void Report(Exception error, string? status)
 	{
-		Trace.TraceWarning("Atualização do Controlador FPS: {0}", error);
+		Trace.TraceWarning("Atualização do {0}: {1}", applicationName, error);
 		message = status;
 	}
 }

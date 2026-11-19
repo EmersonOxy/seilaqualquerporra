@@ -213,7 +213,26 @@ internal sealed class MapDocument
 internal static class SceneMapIO
 {
     public const string FileName = "map.json";
-    public static string DefaultPath => Path.Combine(AppContext.BaseDirectory, FileName);
+    public static string DefaultPath
+    {
+        get
+        {
+            string sharedDirectory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "ControladorFPS", "Dados");
+            string sharedPath = Path.Combine(sharedDirectory, FileName);
+            if (!File.Exists(sharedPath))
+            {
+                string legacyPath = Path.Combine(AppContext.BaseDirectory, FileName);
+                if (File.Exists(legacyPath))
+                {
+                    Directory.CreateDirectory(sharedDirectory);
+                    File.Copy(legacyPath, sharedPath, overwrite: false);
+                }
+            }
+            return sharedPath;
+        }
+    }
 
     private static readonly JsonSerializerOptions Options = new()
     {
