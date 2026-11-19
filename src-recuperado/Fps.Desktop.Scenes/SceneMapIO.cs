@@ -166,7 +166,7 @@ internal static class SceneMapIO
         data.Objects.Add(new MapObject
         {
             Name = "Escada leste", Kind = MapObjectKind.Stairs,
-            Position = new Vector3(34.4f, 1.4f, -8.9f),
+            Position = new Vector3(31.4f, 1.4f, -8.9f),
             Size = new Vector3(2.3f, 2.8f, 6.2f),
             Rotation = new Vector3(0f, 90f, 0f),
             Surface = Surface.Edge
@@ -174,7 +174,7 @@ internal static class SceneMapIO
         data.Objects.Add(new MapObject
         {
             Name = "Escada sul", Kind = MapObjectKind.Stairs,
-            Position = new Vector3(12.7f, 4.5f, 45.9f),
+            Position = new Vector3(11.25f, 4.5f, 45.9f),
             Size = new Vector3(2.7f, 3f, 6.5f),
             Rotation = new Vector3(0f, 90f, 0f),
             Surface = Surface.Edge
