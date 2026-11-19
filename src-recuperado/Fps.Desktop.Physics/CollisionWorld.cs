@@ -106,7 +106,7 @@ internal sealed class CollisionWorld
         {
             // For a floor slope, the feet are measured vertically while the
             // capsule radius is perpendicular to the surface: touching is valid.
-            if (ramp.TryGetHeight(feet, out float walkingY) && elevation >= walkingY - .035f)
+            if (ramp.TryGetHeight(feet, out float walkingY, radius * .85f) && elevation >= walkingY - .035f)
                 continue;
             if (CapsuleHitsBox(feet, elevation, height, radius, ramp.Center, ramp.BoxSize,
                 RampRotation(ramp))) return false;
@@ -136,7 +136,7 @@ internal sealed class CollisionWorld
     private static bool OverlapsSlab(float a, float b, float extent) =>
         MathF.Min(a, b) < extent && MathF.Max(a, b) > -extent;
 
-    private static bool BoxTopAt(Vector2 feet, SceneBox box, out float top)
+    private static bool BoxTopAt(Vector2 feet, SceneBox box, float radius, out float top)
     {
         Quaternion q = SceneTransform.Orientation(box.RotationDegrees);
         Vector3 normal = Vector3.Transform(Vector3.UnitY, q);
@@ -149,8 +149,8 @@ internal sealed class CollisionWorld
         top = roof.Y - (normal.X * (feet.X - roof.X) + normal.Z * (feet.Y - roof.Z)) / normal.Y;
         Vector3 local = Vector3.Transform(new Vector3(feet.X, top, feet.Y) - box.Center,
             Quaternion.Inverse(q));
-        return MathF.Abs(local.X) <= box.Size.X * .5f + .04f &&
-               MathF.Abs(local.Z) <= box.Size.Z * .5f + .04f;
+        return MathF.Abs(local.X) <= box.Size.X * .5f + radius * .85f &&
+               MathF.Abs(local.Z) <= box.Size.Z * .5f + radius * .85f;
     }
 
     private static bool CylinderTopAt(Vector2 feet, SceneCylinder cylinder, out float top)
@@ -182,7 +182,7 @@ internal sealed class CollisionWorld
 
         foreach (SceneBox box in boxes)
         {
-            if (!box.Solid || !BoxTopAt(feet, box, out float y) ||
+            if (!box.Solid || !BoxTopAt(feet, box, radius, out float y) ||
                 y < minY || y > maxY || IsThroughFloorHole(feet, y, radius)) continue;
             if (y > support) { support = y; found = true; }
         }
@@ -194,7 +194,7 @@ internal sealed class CollisionWorld
         }
         foreach (SceneRamp ramp in ramps)
         {
-            if (ramp.TryGetHeight(feet, out float y) &&
+            if (ramp.TryGetHeight(feet, out float y, radius * .85f) &&
                 y >= minY && y <= maxY && y > support)
             {
                 support = y; found = true;
