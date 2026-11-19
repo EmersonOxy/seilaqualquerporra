@@ -18,14 +18,14 @@ internal readonly record struct SceneRamp(Vector3 Start, Vector3 End, float Widt
     public float Run => Vector2.Distance(new Vector2(Start.X, Start.Z), new Vector2(End.X, End.Z));
     public float Rise => End.Y - Start.Y;
 
-    public bool TryGetHeight(Vector2 point, out float height)
+    public bool TryGetHeight(Vector2 point, out float height, float margin = 0f)
     {
         Vector2 origin = new(Start.X, Start.Z);
         Vector2 displacement = point - origin;
         Vector2 forward = Direction;
         float along = Vector2.Dot(displacement, forward);
         float sideways = MathF.Abs(forward.X * displacement.Y - forward.Y * displacement.X);
-        if (along < -0.01f || along > Run + 0.01f || sideways > Width * 0.5f)
+        if (along < -margin || along > Run + margin || sideways > Width * 0.5f + margin)
         {
             height = 0f;
             return false;
