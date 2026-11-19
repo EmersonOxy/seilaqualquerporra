@@ -7,9 +7,9 @@ using System.Security.Permissions;
 
 [assembly: AssemblyCompany("ControladorFPS")]
 [assembly: AssemblyConfiguration("Release")]
-[assembly: AssemblyFileVersion("1.4.0.0")]
-[assembly: AssemblyInformationalVersion("1.4.0")]
+[assembly: AssemblyFileVersion("1.0.0.0")]
+[assembly: AssemblyInformationalVersion("1.0.0")]
 [assembly: AssemblyProduct("ControladorFPS")]
 [assembly: AssemblyTitle("ControladorFPS")]
 [assembly: AssemblyMetadata("UpdateFeed", "https://github.com/EmersonOxy/seilaqualquerporra")]
-[assembly: AssemblyVersion("1.4.0.0")]
+[assembly: AssemblyVersion("1.0.0.0")]

@@ -123,18 +123,51 @@ internal sealed class SetupProgress : Form
                     await client.DownloadFileTaskAsync(new Uri(setupUrl), setupPath);
             }
 
-            var args = "--installto " + Quote(installDir) + " --silent";
-            var start = new ProcessStartInfo(setupPath, args)
+        var installArgs = "--installto " + Quote(installDir) + " --silent";
+        var removedOldInstall = false;
+        Exception installError = null;
+        try
             {
-                UseShellExecute = true,
-                WorkingDirectory = cacheDir
-            };
-            using (var process = Process.Start(start))
+            if (action != "install")
             {
-                if (process == null) throw new InvalidOperationException("Nao foi possivel iniciar o instalador.");
-                await Task.Run(delegate { process.WaitForExit(); });
-                if (process.ExitCode != 0)
-                    throw new InvalidOperationException("O setup terminou com o codigo " + process.ExitCode + ".");
+                var updater = Path.Combine(installDir, "Update.exe");
+                if (File.Exists(updater))
+                {
+                    status.Text = "Preparando a instalacao...";
+                    await RunProcessAsync(updater, "--rootDir " + Quote(installDir) + " uninstall --silent");
+                    removedOldInstall = true;
+                }
+            }
+
+            status.Text = action == "install" ? "Instalando " + appName + "..." : "Aplicando a versao escolhida...";
+            await RunProcessAsync(setupPath, installArgs);
+        }
+        catch (Exception updateError)
+        {
+            installError = updateError;
+        }
+
+        if (installError != null)
+        {
+            if (removedOldInstall && action == "update" && File.Exists(cacheSetup))
+            {
+                try
+                {
+                    status.Text = "Restaurando a versao anterior...";
+                    await RunProcessAsync(cacheSetup, installArgs);
+                    MessageBox.Show("A atualizacao falhou. A versao anterior foi restaurada.\n\n" + installError.Message,
+                        Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    Close();
+                    return;
+                }
+                catch (Exception restoreError)
+                {
+                    throw new InvalidOperationException("A atualizacao e a restauracao automatica falharam. Rode Setup.exe novamente e escolha Restaurar.",
+                        new AggregateException(installError, restoreError));
+                }
+            }
+
+            throw new InvalidOperationException("Nao foi possivel concluir a instalacao.", installError);
             }
 
             if (action != "restore" || !File.Exists(cacheSetup))
@@ -172,5 +205,21 @@ internal sealed class SetupProgress : Form
     private static string Quote(string value)
     {
         return "\"" + value.Replace("\"", "\\\"") + "\"";
+    }
+
+    private async Task RunProcessAsync(string executable, string arguments)
+    {
+        var start = new ProcessStartInfo(executable, arguments)
+        {
+            UseShellExecute = true,
+            WorkingDirectory = cacheDir
+        };
+        using (var process = Process.Start(start))
+        {
+            if (process == null) throw new InvalidOperationException("Nao foi possivel iniciar o instalador.");
+            await Task.Run(delegate { process.WaitForExit(); });
+            if (process.ExitCode != 0)
+                throw new InvalidOperationException("O instalador terminou com o codigo " + process.ExitCode + ".");
+        }
     }
 }

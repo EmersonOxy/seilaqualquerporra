@@ -6,8 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../src-recuperado/Fps.Desktop.Scenes/*.cs" Link="Scenes/%(Filename)%(Extension)" />
-    <Compile Include="../../src-recuperado/Fps.Desktop.Physics/CollisionWorld.cs" Link="Physics/CollisionWorld.cs" />
-    <Compile Include="../../src-recuperado/Fps.Desktop.Gameplay/CollectibleManager.cs" Link="Gameplay/CollectibleManager.cs" />
+    <Compile Include="../../src/ControladorFPS/Fps.Desktop.Scenes/*.cs" Link="Scenes/%(Filename)%(Extension)" />
+    <Compile Include="../../src/ControladorFPS/Fps.Desktop.Physics/CollisionWorld.cs" Link="Physics/CollisionWorld.cs" />
+    <Compile Include="../../src/ControladorFPS/Fps.Desktop.Gameplay/CollectibleManager.cs" Link="Gameplay/CollectibleManager.cs" />
   </ItemGroup>
 </Project>

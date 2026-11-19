@@ -23,10 +23,10 @@ jobs:
         run: dotnet tool install vpk --version 1.2.161 --tool-path ./.tools
 
       - name: Publicar jogo
-        run: dotnet publish src-recuperado/ControladorFPS.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/game --nologo
+        run: dotnet publish src/ControladorFPS/ControladorFPS.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/game --nologo
 
       - name: Publicar editor
-        run: dotnet publish tools/MapEditor/MapEditor.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/editor --nologo
+        run: dotnet publish src/MapEditor/MapEditor.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o dist/editor --nologo
 
       - name: Criar pacote de atualização do jogo
         shell: pwsh
@@ -60,7 +60,7 @@ jobs:
           $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
           $framework = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319'
           New-Item -ItemType Directory -Force -Path dist/installers/Jogo, dist/installers/Editor | Out-Null
-          $source = 'tools\SetupManager\Program.cs'
+          $source = 'src\SetupManager\Program.cs'
           $references = @("/reference:$framework\System.dll", "/reference:$framework\System.Drawing.dll", "/reference:$framework\System.Windows.Forms.dll")
           & $compiler /nologo /target:winexe /out:dist\installers\Jogo\Setup.exe $references $source
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -76,7 +76,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $gameDir, $editorDir | Out-Null
           Copy-Item dist/installers/Jogo/Setup.exe "$gameDir/Setup.exe"
           Copy-Item dist/installers/Editor/Setup.exe "$editorDir/Setup.exe"
-          Copy-Item tools/SetupManager/LEIA-ME.txt "$root/LEIA-ME.txt"
+          Copy-Item src/SetupManager/LEIA-ME.txt "$root/LEIA-ME.txt"
           Compress-Archive -Path $root -DestinationPath dist/ControladorFPS-PacoteGeral.zip -CompressionLevel Optimal
 
       - name: Publicar pacote geral

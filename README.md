@@ -12,6 +12,17 @@ Na primeira execução, o Setup baixa a versão atual do GitHub e instala o apli
 
 Os dois aplicativos compartilham o mapa em `Documentos\ControladorFPS\Dados\map.json`. Salve pelo editor; o jogo detecta as mudanças e carrega o mapa sem reinstalação. A pasta de dados é preservada durante as atualizações. O jogo continua funcionando offline.
 
-## Publicar uma versão
+## Versão
 
-Crie e envie uma tag `vX.Y.Z` para o GitHub. A automação compila os aplicativos, atualiza os canais do jogo/editor e publica um único ZIP com os dois setups de gerenciamento.
+A versão inicial reorganizada é **1.0.0**. Os pacotes de build ficam fora do repositório, em `dist/`, e os dados dos usuários ficam em Documentos.
+
+## Estrutura
+
+- `src/ControladorFPS`: jogo e subsistemas compartilhados.
+- `src/MapEditor`: editor de mapas.
+- `src/SetupManager`: setups leves que instalam, atualizam e restauram os aplicativos.
+- `assets`: áudio e demais recursos compartilhados.
+- `tests`: validações do projeto.
+- `.github/workflows`: CI e publicação de releases.
+
+Para publicar uma versão, envie uma tag `vX.Y.Z`. A automação compila o jogo e o editor, publica os canais de atualização e gera um único ZIP geral.

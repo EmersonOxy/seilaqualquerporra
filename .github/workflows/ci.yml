@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Compilar jogo
+        run: dotnet build src/ControladorFPS/ControladorFPS.csproj -c Release --nologo
+
+      - name: Compilar editor
+        run: dotnet build src/MapEditor/MapEditor.csproj -c Release --nologo
+
+      - name: Validar dados e física do mapa
+        run: dotnet run --project tests/LevelValidation/LevelValidation.csproj -c Release --nologo
