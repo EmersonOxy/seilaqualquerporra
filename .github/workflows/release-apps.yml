@@ -72,6 +72,42 @@ jobs:
           set "APP_HOME=%~dp0"
           "%~dp0MapEditor-editor-Setup.exe" --installto "%APP_HOME%"
           '@ | Set-Content "$editorDir/Instalar-Editor.cmd" -Encoding ascii
+          @'
+          @echo off
+          setlocal
+          set "APP_HOME=%~dp0"
+          set "TARGET="
+          if exist "%APP_HOME%current\sq.version" set "TARGET=%APP_HOME%"
+          if not defined TARGET if exist "%LOCALAPPDATA%\ControladorFPS\current\sq.version" set "TARGET=%LOCALAPPDATA%\ControladorFPS"
+          if not defined TARGET set "TARGET=%APP_HOME%"
+          echo Atualizando o Controlador FPS sem iniciar o jogo...
+          "%APP_HOME%ControladorFPS-win-Setup.exe" --installto "%TARGET%" --silent
+          if errorlevel 1 (
+            echo Falha ao atualizar. Feche o jogo, se estiver aberto, e tente novamente.
+            pause
+            exit /b 1
+          )
+          echo Atualizacao concluida. O jogo nao foi aberto.
+          pause
+          '@ | Set-Content "$gameDir/Atualizar-Jogo.cmd" -Encoding ascii
+          @'
+          @echo off
+          setlocal
+          set "APP_HOME=%~dp0"
+          set "TARGET="
+          if exist "%APP_HOME%current\sq.version" set "TARGET=%APP_HOME%"
+          if not defined TARGET if exist "%LOCALAPPDATA%\MapEditor\current\sq.version" set "TARGET=%LOCALAPPDATA%\MapEditor"
+          if not defined TARGET set "TARGET=%APP_HOME%"
+          echo Atualizando o Editor sem iniciar o aplicativo...
+          "%APP_HOME%MapEditor-editor-Setup.exe" --installto "%TARGET%" --silent
+          if errorlevel 1 (
+            echo Falha ao atualizar. Feche o editor, se estiver aberto, e tente novamente.
+            pause
+            exit /b 1
+          )
+          echo Atualizacao concluida. O editor nao foi aberto.
+          pause
+          '@ | Set-Content "$editorDir/Atualizar-Editor.cmd" -Encoding ascii
           Compress-Archive -Path $gameDir -DestinationPath dist/ControladorFPS-Jogo.zip -CompressionLevel Optimal
           Compress-Archive -Path $editorDir -DestinationPath dist/MapEditor-Editor.zip -CompressionLevel Optimal
 
