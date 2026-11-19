@@ -66,7 +66,7 @@ internal sealed class DesktopInput
 			SkyPressed |= (int)val == 297;
 			val = (KeyboardKey)Raylib.GetKeyPressed();
 		}
-		bool flag4 = CBool.op_Implicit(Raylib.IsWindowFocused());
+		bool flag4 = ((sbyte)(Raylib.IsWindowFocused()) != 0);
 		if (!flag4)
 		{
 			bool flag5 = (SkyPressed = false);
@@ -84,7 +84,7 @@ internal sealed class DesktopInput
 		}
 		if (!Captured)
 		{
-			if (CBool.op_Implicit(Raylib.IsMouseButtonPressed((MouseButton)0)))
+			if (((sbyte)(Raylib.IsMouseButtonPressed((MouseButton)0)) != 0))
 			{
 				blockedUntilRelease = ReadButtons();
 				Raylib.DisableCursor();
@@ -116,19 +116,19 @@ internal sealed class DesktopInput
 		//IL_003a: Unknown result type (might be due to invalid IL or missing references)
 		//IL_008e: Unknown result type (might be due to invalid IL or missing references)
 		Buttons buttons = Buttons.None;
-		if (CBool.op_Implicit(Raylib.IsKeyDown((KeyboardKey)87)))
+		if (((sbyte)(Raylib.IsKeyDown((KeyboardKey)87)) != 0))
 		{
 			buttons |= Buttons.Forward;
 		}
-		if (CBool.op_Implicit(Raylib.IsKeyDown((KeyboardKey)83)))
+		if (((sbyte)(Raylib.IsKeyDown((KeyboardKey)83)) != 0))
 		{
 			buttons |= Buttons.Back;
 		}
-		if (CBool.op_Implicit(Raylib.IsKeyDown((KeyboardKey)65)))
+		if (((sbyte)(Raylib.IsKeyDown((KeyboardKey)65)) != 0))
 		{
 			buttons |= Buttons.Left;
 		}
-		if (CBool.op_Implicit(Raylib.IsKeyDown((KeyboardKey)68)))
+		if (((sbyte)(Raylib.IsKeyDown((KeyboardKey)68)) != 0))
 		{
 			buttons |= Buttons.Right;
 		}
@@ -144,7 +144,7 @@ internal sealed class DesktopInput
 		{
 			buttons |= Buttons.CrouchHeld;
 		}
-		if (CBool.op_Implicit(Raylib.IsKeyDown((KeyboardKey)67)))
+		if (((sbyte)(Raylib.IsKeyDown((KeyboardKey)67)) != 0))
 		{
 			buttons |= Buttons.ToggleCrouch;
 		}
@@ -157,9 +157,9 @@ internal sealed class DesktopInput
 		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
 		//IL_000d: Unknown result type (might be due to invalid IL or missing references)
 		//IL_000e: Unknown result type (might be due to invalid IL or missing references)
-		if (!CBool.op_Implicit(Raylib.IsKeyDown(first)))
+		if (!((sbyte)(Raylib.IsKeyDown(first)) != 0))
 		{
-			return CBool.op_Implicit(Raylib.IsKeyDown(second));
+			return ((sbyte)(Raylib.IsKeyDown(second)) != 0);
 		}
 		return true;
 	}
