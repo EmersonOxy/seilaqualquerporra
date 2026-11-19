@@ -10,6 +10,8 @@ internal sealed class PortalTraversal(ScenePortal entry, Vector3 entrySide, Vect
 
 	private float elapsed;
 
+	public ScenePortal Entry { get; } = entry;
+
 	public ScenePortal Exit { get; } = exit;
 
 	public Vector3 EndEye { get; } = endEye;
