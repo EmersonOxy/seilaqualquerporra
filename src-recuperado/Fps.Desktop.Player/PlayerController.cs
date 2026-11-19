@@ -139,7 +139,9 @@ internal sealed class PlayerController(Vector2 spawn)
 		}
 		Vector2 feet = Feet;
 		float elevation = Elevation;
-		Feet = world.Move(Feet, velocity * dt, Height, 0.32f, ref Elevation, Grounded);
+		float movedElevation = Elevation;
+		Feet = world.Move(Feet, velocity * dt, Height, 0.32f, ref movedElevation, Grounded);
+		Elevation = movedElevation;
 		Vector2 vector3 = (Feet - feet) / dt;
 		if (Feet.X != feet.X + velocity.X * dt)
 		{
