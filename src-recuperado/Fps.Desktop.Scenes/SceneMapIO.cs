@@ -238,7 +238,7 @@ internal static class SceneMapIO
         foreach (MapObject o in data.Objects)
         {
             if (!Finite(o.Position) || !Finite(o.Size) || !Finite(o.Rotation) ||
-                o.Size.X < .05f || o.Size.Y < .05f || o.Size.Z < .05f ||
+                o.Size.X < .05f || (o.Kind == MapObjectKind.Ramp ? MathF.Abs(o.Size.Y) < .05f : o.Size.Y < .05f) || o.Size.Z < .05f ||
                 o.Size.X > 500f || o.Size.Y > 500f || o.Size.Z > 500f)
                 throw new InvalidDataException("Dimensoes invalidas para: " + o.Name);
         }
