@@ -14,7 +14,7 @@ Os dois aplicativos compartilham o mapa em `Documentos\ControladorFPS\Dados\map.
 
 ## Versão
 
-A nova linha organizada está na versão **1.1.0**. Ela inclui dissolve e partículas ao coletar orbs, água e grama colocáveis pelo editor, e materiais de vidro e holográfico para os objetos. O repositório já contém uma tag histórica `v1.0.0` para a instalação inicial do jogo, então ela foi mantida. A release atual é marcada explicitamente para que os setups baixem esta linha. Os pacotes de build ficam fora do repositório, em `dist/`, e os dados dos usuários ficam em Documentos.
+A nova linha organizada está na versão **1.2.0**. Ela inclui dissolve e partículas ao coletar orbs, água e grama colocáveis pelo editor, e materiais de vidro e holográfico para os objetos. Tags históricas `v1.0.0` e `v1.1.0` pertencem a releases antigas do jogo e foram preservadas. A release atual é marcada explicitamente para que os setups baixem esta linha. Os pacotes de build ficam fora do repositório, em `dist/`, e os dados dos usuários ficam em Documentos.
 
 ## Estrutura
 
