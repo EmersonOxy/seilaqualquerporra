@@ -1,7 +1,7 @@
 name: Compilar jogo e editor de mapas (Windows)
 on:
   push:
-    branches: [feature/fisica-rampas-escadas]
+    branches: [feature/refino-editor-fisica]
     paths:
       - 'src-recuperado/**'
       - 'tools/MapEditor/**'
